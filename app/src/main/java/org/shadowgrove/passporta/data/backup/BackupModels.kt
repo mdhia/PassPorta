@@ -41,6 +41,7 @@ internal data class BackupPass(
     val originalFileName: String? = null,
     val originalMimeType: String? = null,
     val expirationDate: Long? = null,
+    val startDate: Long? = null,
     val location: String? = null,
     val locationLatitude: Double? = null,
     val locationLongitude: Double? = null,
@@ -58,6 +59,7 @@ internal data class BackupSettings(
     val useDynamicColor: Boolean = false,
     val openBarcodeFullscreen: Boolean = false,
     val showExpiredInFolders: Boolean = false,
+    val showUpcomingInFolders: Boolean = false,
 )
 
 /**

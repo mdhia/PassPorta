@@ -73,8 +73,19 @@ internal object PassMigrations {
         }
     }
 
+    /**
+     * Version 5 adds the start date - the counterpart to the expiration date. Existing passes
+     * remain valid from the start (`null`).
+     */
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `passes` ADD COLUMN `start_date` INTEGER")
+        }
+    }
+
     /** All migrations in ascending order. */
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 
     /** New, entirely nullable columns - therefore without `DEFAULT` and without data migration. */
     private val NEW_PASS_COLUMNS = listOf(

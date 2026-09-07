@@ -103,6 +103,7 @@ internal fun AppSettings.toBackupSettings(): BackupSettings = BackupSettings(
     useDynamicColor = useDynamicColor,
     openBarcodeFullscreen = openBarcodeFullscreen,
     showExpiredInFolders = showExpiredInFolders,
+    showUpcomingInFolders = showUpcomingInFolders,
 )
 
 /** Applies a restored settings block through the store's normal setters. */
@@ -112,6 +113,7 @@ internal fun SettingsStore.restore(settings: BackupSettings) {
     setUseDynamicColor(settings.useDynamicColor)
     setOpenBarcodeFullscreen(settings.openBarcodeFullscreen)
     setShowExpiredInFolders(settings.showExpiredInFolders)
+    setShowUpcomingInFolders(settings.showUpcomingInFolders)
 }
 
 

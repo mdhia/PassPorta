@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -606,18 +607,22 @@ private fun FolderChips(
 private fun FolderFilter.label(): String = when (this) {
     FolderFilter.Favorites -> stringResource(R.string.overview_favorites)
     FolderFilter.All -> stringResource(R.string.overview_all_folders)
+    FolderFilter.Upcoming -> stringResource(R.string.overview_upcoming)
     FolderFilter.Archive -> stringResource(R.string.overview_archive)
     is FolderFilter.Named -> name
 }
 
 /**
- * Only favorites get a symbol.
+ * Only favorites and upcoming passes get a symbol.
  *
  * Deliberately an icon from the core set: the folder bar is the most-used area of the app and
  * shouldn't depend on the optional icon library.
  */
-private fun FolderFilter.leadingIcon(): ImageVector? =
-    if (this == FolderFilter.Favorites) Icons.Default.Favorite else null
+private fun FolderFilter.leadingIcon(): ImageVector? = when (this) {
+    FolderFilter.Favorites -> Icons.Default.Favorite
+    FolderFilter.Upcoming -> Icons.Default.Schedule
+    else -> null
+}
 
 @Composable
 private fun EmptyState(isArchive: Boolean, modifier: Modifier = Modifier) {

@@ -120,6 +120,16 @@ data class PassEntity(
     @ColumnInfo(name = "expiration_date")
     val expirationDate: Long? = null,
 
+    /**
+     * Start of validity in milliseconds; `null` = valid from the start.
+     *
+     * A pass with a future [startDate] is not yet usable and therefore gets its own page
+     * ("Bevorstehend") instead of showing up among the currently valid passes - the mirror
+     * image of [expirationDate] and the archive.
+     */
+    @ColumnInfo(name = "start_date")
+    val startDate: Long? = null,
+
     /** Location in plain text, e.g. venue address. */
     @ColumnInfo(name = "location")
     val location: String? = null,
@@ -165,3 +175,15 @@ fun PassEntity.isExpired(now: Long = System.currentTimeMillis()): Boolean {
     val expiresAt = expirationDate ?: return false
     return expiresAt < now
 }
+
+/**
+ * True if the pass's validity only starts in the future at time [now].
+ *
+ * Once [startDate] has passed, the pass behaves like any other - it no longer counts as
+ * upcoming even if it stays selected here.
+ */
+fun PassEntity.isUpcoming(now: Long = System.currentTimeMillis()): Boolean {
+    val startsAt = startDate ?: return false
+    return startsAt > now
+}
+

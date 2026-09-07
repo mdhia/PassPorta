@@ -28,8 +28,11 @@
     <string name="detail_copied">Copied to clipboard</string>
     <string name="detail_copy_action">Copy</string>
     <string name="detail_valid_until">Valid until %1$s</string>
+    <string name="detail_valid_from">Valid from %1$s</string>
+    <string name="detail_valid_range">Valid from %1$s to %2$s</string>
     <string name="detail_expired_on">Expired on %1$s</string>
     <string name="detail_expired_badge">Expired</string>
+    <string name="detail_upcoming_badge">Upcoming</string>
     <string name="detail_open_original">View original document</string>
 
     <!-- Original document -->
@@ -78,6 +81,10 @@
     <string name="editor_field_color">Card color</string>
     <string name="editor_color_selected">Selected color</string>
     <string name="editor_field_location">Location</string>
+    <string name="editor_field_date">Date</string>
+    <string name="editor_date_start">Start</string>
+    <string name="editor_date_end">End</string>
+    <string name="editor_date_none">No date</string>
     <string name="editor_field_expiration">Expiration date</string>
     <string name="editor_expiration_none">No expiration date</string>
     <string name="editor_expiration_clear">Remove</string>
@@ -128,6 +135,8 @@
     <string name="settings_fullscreen_hint">Opens a pass directly in full screen at maximum brightness.</string>
     <string name="settings_expired_in_folders">Also show expired passes</string>
     <string name="settings_expired_in_folders_hint">Shows expired passes additionally in their original folder instead of only in the archive.</string>
+    <string name="settings_upcoming_in_folders">Also show upcoming passes</string>
+    <string name="settings_upcoming_in_folders_hint">Shows passes with a future start date additionally under "All passes" and in their original folder instead of only under "Upcoming".</string>
     <string name="settings_offline">Fully offline</string>
     <string name="settings_offline_hint">PassPorta works entirely offline and does not require any permissions. All data remains on this device.</string>
     <string name="settings_color_indigo">Indigo</string>

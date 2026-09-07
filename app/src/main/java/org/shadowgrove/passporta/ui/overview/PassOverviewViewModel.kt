@@ -21,6 +21,7 @@ import org.shadowgrove.passporta.data.importer.PassImportResult
 import org.shadowgrove.passporta.data.importer.PassImporter
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.isExpired
+import org.shadowgrove.passporta.data.local.entity.isUpcoming
 import org.shadowgrove.passporta.data.repository.PassRepository
 import org.shadowgrove.passporta.data.settings.SettingsStore
 import org.shadowgrove.passporta.ui.model.FolderFilter
@@ -117,11 +118,21 @@ class PassOverviewViewModel(
         settingsStore.settings,
     ) { entities, filter, searchQuery, settings ->
         val now = System.currentTimeMillis()
-        val (archived, active) = entities.partition { it.isExpired(now) }
+        val (archived, notArchived) = entities.partition { it.isExpired(now) }
+
+        // Passes with a future start date get their own page instead of counting as
+        // currently valid - the mirror image of the archive split above. Once `isExpired`
+        // is already excluded, only the still-valid-or-not-yet-valid passes remain here.
+        val (upcoming, active) = notArchived.partition { it.isUpcoming(now) }
 
         // Setting "show expired in folders": the archive still exists, the expired passes
         // additionally show up in their original folder.
-        val inFolders = if (settings.showExpiredInFolders) entities else active
+        // Setting "show upcoming in folders": analogous, for passes not yet valid.
+        val inFolders = buildList {
+            addAll(active)
+            if (settings.showExpiredInFolders) addAll(archived)
+            if (settings.showUpcomingInFolders) addAll(upcoming)
+        }
 
         // Favorites follow the same rule as folders: an expired favorite belongs in the
         // archive, not on the start page - unless the user explicitly wants it otherwise.
@@ -150,6 +161,12 @@ class PassOverviewViewModel(
                 )
             }
             // The archive is deliberately at the end - expired passes are the special case.
+            // Upcoming passes get their own page right before it: both are exceptions to
+            // "currently valid", one for passes no longer valid, the other for passes not
+            // yet valid.
+            if (upcoming.isNotEmpty()) {
+                add(FolderPage(FolderFilter.Upcoming, upcoming.toUiPasses(now)))
+            }
             if (archived.isNotEmpty()) {
                 add(FolderPage(FolderFilter.Archive, archived.toUiPasses(now)))
             }

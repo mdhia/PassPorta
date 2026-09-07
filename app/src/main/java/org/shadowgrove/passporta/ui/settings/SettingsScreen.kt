@@ -229,6 +229,22 @@ fun SettingsScreen(
                 },
             )
 
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_upcoming_in_folders)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_upcoming_in_folders_hint))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = settings.showUpcomingInFolders,
+                        onCheckedChange = viewModel::setShowUpcomingInFolders,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    viewModel.setShowUpcomingInFolders(!settings.showUpcomingInFolders)
+                },
+            )
+
             HorizontalDivider()
             SectionTitle(stringResource(R.string.settings_section_backup))
 

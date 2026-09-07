@@ -8,6 +8,7 @@ import org.shadowgrove.passporta.data.local.entity.BarcodeType
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
 import org.shadowgrove.passporta.data.local.entity.isExpired
+import org.shadowgrove.passporta.data.local.entity.isUpcoming
 import org.shadowgrove.passporta.data.local.model.PassWithFields
 import org.shadowgrove.passporta.ui.icons.PassIcon
 import org.shadowgrove.passporta.ui.icons.PassIconLibrary
@@ -80,6 +81,12 @@ data class PassUi(
     val expirationDate: Long? = null,
     val isExpired: Boolean = false,
 
+    /** `null` = valid from the start. */
+    val startDate: Long? = null,
+
+    /** True while [startDate] still lies in the future. */
+    val isUpcoming: Boolean = false,
+
     /** Marked as favorite - additionally shows the pass on the favorites page. */
     val isFavorite: Boolean = false,
 
@@ -126,6 +133,8 @@ fun PassEntity.toUi(
     fields = fields.map { PassFieldUi(label = it.label, value = it.value) },
     expirationDate = expirationDate,
     isExpired = isExpired(now),
+    startDate = startDate,
+    isUpcoming = isUpcoming(now),
     isFavorite = isFavorite,
     location = location,
     locationLatitude = locationLatitude,

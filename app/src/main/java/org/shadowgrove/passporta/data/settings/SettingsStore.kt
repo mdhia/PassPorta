@@ -61,6 +61,9 @@ data class AppSettings(
 
     /** Also shows expired passes in their original folder. */
     val showExpiredInFolders: Boolean = false,
+
+    /** Also shows passes with a future start date in "All passes" and their original folder. */
+    val showUpcomingInFolders: Boolean = false,
 )
 
 /**
@@ -107,12 +110,16 @@ class SettingsStore(context: Context) {
     fun setShowExpiredInFolders(value: Boolean) =
         preferences.edit { putBoolean(KEY_EXPIRED_IN_FOLDERS, value) }
 
+    fun setShowUpcomingInFolders(value: Boolean) =
+        preferences.edit { putBoolean(KEY_UPCOMING_IN_FOLDERS, value) }
+
     private fun read() = AppSettings(
         themeColor = AppThemeColor.fromKey(preferences.getString(KEY_COLOR, null)),
         themeMode = AppThemeMode.fromKey(preferences.getString(KEY_MODE, null)),
         useDynamicColor = preferences.getBoolean(KEY_DYNAMIC, false),
         openBarcodeFullscreen = preferences.getBoolean(KEY_FULLSCREEN, false),
         showExpiredInFolders = preferences.getBoolean(KEY_EXPIRED_IN_FOLDERS, false),
+        showUpcomingInFolders = preferences.getBoolean(KEY_UPCOMING_IN_FOLDERS, false),
     )
 
     /**
@@ -133,5 +140,6 @@ class SettingsStore(context: Context) {
         const val KEY_DYNAMIC = "dynamic_color"
         const val KEY_FULLSCREEN = "barcode_fullscreen"
         const val KEY_EXPIRED_IN_FOLDERS = "expired_in_folders"
+        const val KEY_UPCOMING_IN_FOLDERS = "upcoming_in_folders"
     }
 }

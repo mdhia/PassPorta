@@ -25,6 +25,15 @@ sealed interface FolderFilter {
 
     data class Named(val name: String) : FolderFilter
 
+    /**
+     * Passes whose start date still lies in the future - not yet usable.
+     *
+     * Like favorites and the archive, not a real folder. Always positioned right before the
+     * archive: both are exceptions to "currently valid", the archive for passes that are no
+     * longer valid, this one for passes that aren't valid yet.
+     */
+    data object Upcoming : FolderFilter
+
     /** Expired passes - always the last entry of the selection. */
     data object Archive : FolderFilter
 }

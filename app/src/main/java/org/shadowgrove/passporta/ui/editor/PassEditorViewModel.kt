@@ -74,6 +74,9 @@ data class PassEditorUiState(
     /** `null` = valid indefinitely. */
     val expirationDate: Long? = null,
 
+    /** `null` = valid from the start. */
+    val startDate: Long? = null,
+
     /** Chosen logo - already saved locally, so the preview shows immediately. */
     val logoFile: File? = null,
 
@@ -189,6 +192,7 @@ class PassEditorViewModel(
                     backgroundColor = pass.backgroundColor,
                     location = pass.location.orEmpty(),
                     expirationDate = pass.expirationDate,
+                    startDate = pass.startDate,
                     logoFile = assetStore.resolve(pass.logoPath),
                     icon = PassIconLibrary.byKey(pass.iconKey),
                     fields = fields.map { field ->
@@ -259,7 +263,35 @@ class PassEditorViewModel(
     fun updateBarcodeType(value: BarcodeType) = state.update { it.copy(barcodeType = value) }
     fun updateBackgroundColor(value: Int) = state.update { it.copy(backgroundColor = value) }
     fun updateLocation(value: String) = state.update { it.copy(location = value) }
-    fun updateExpirationDate(value: Long?) = state.update { it.copy(expirationDate = value) }
+
+    /**
+     * Sets the expiration date - ignored if it would fall before [PassEditorUiState.startDate].
+     *
+     * The end of the validity span can never lie before its start; enforcing that here, at the
+     * single source of truth, keeps the invariant valid regardless of which UI path changes the
+     * date (the date picker additionally disables the invalid days so this rarely triggers).
+     */
+    fun updateExpirationDate(value: Long?) = state.update { current ->
+        if (value != null && current.startDate != null && value < current.startDate) {
+            current
+        } else {
+            current.copy(expirationDate = value)
+        }
+    }
+
+    /**
+     * Sets the start date - ignored if it would fall after [PassEditorUiState.expirationDate].
+     *
+     * Mirrors [updateExpirationDate]: the start of the validity span can never lie after its
+     * end.
+     */
+    fun updateStartDate(value: Long?) = state.update { current ->
+        if (value != null && current.expirationDate != null && value > current.expirationDate) {
+            current
+        } else {
+            current.copy(startDate = value)
+        }
+    }
 
     // --- Additional fields ---
 
@@ -356,6 +388,7 @@ class PassEditorViewModel(
                     originalFileName = originalFileName,
                     originalMimeType = originalMimeType,
                     expirationDate = current.expirationDate,
+                    startDate = current.startDate,
                     location = current.location.takeIf { it.isNotBlank() },
                     locationLatitude = latitude,
                     locationLongitude = longitude,

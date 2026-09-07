@@ -9,6 +9,7 @@
     <string name="overview_empty_title">Noch keine Pässe</string>
     <string name="overview_empty_message">Öffne eine .pkpass-Datei oder teile einen Wallet-Link mit PassPorta.</string>
     <string name="overview_archive">Archiv</string>
+    <string name="overview_upcoming">Bevorstehend</string>
     <string name="overview_archive_empty_title">Archiv ist leer</string>
     <string name="overview_archive_empty_message">Abgelaufene Pässe sammeln sich hier automatisch.</string>
     <string name="overview_favorite_badge">Favorit</string>
@@ -28,8 +29,11 @@
     <string name="detail_copied">In die Zwischenablage kopiert</string>
     <string name="detail_copy_action">Kopieren</string>
     <string name="detail_valid_until">Gültig bis %1$s</string>
+    <string name="detail_valid_from">Gültig ab %1$s</string>
+    <string name="detail_valid_range">Gültig von %1$s bis %2$s</string>
     <string name="detail_expired_on">Abgelaufen am %1$s</string>
     <string name="detail_expired_badge">Abgelaufen</string>
+    <string name="detail_upcoming_badge">Bevorstehend</string>
     <string name="detail_open_original">Originaldokument ansehen</string>
 
     <!-- Originaldokument -->
@@ -78,6 +82,10 @@
     <string name="editor_field_color">Kartenfarbe</string>
     <string name="editor_color_selected">Ausgewählte Farbe</string>
     <string name="editor_field_location">Ort</string>
+    <string name="editor_field_date">Datum</string>
+    <string name="editor_date_start">Start</string>
+    <string name="editor_date_end">Ende</string>
+    <string name="editor_date_none">Kein Datum</string>
     <string name="editor_field_expiration">Ablaufdatum</string>
     <string name="editor_expiration_none">Kein Ablaufdatum</string>
     <string name="editor_expiration_clear">Entfernen</string>
@@ -128,6 +136,8 @@
     <string name="settings_fullscreen_hint">Öffnet einen Pass direkt im Vollbild mit maximaler Helligkeit.</string>
     <string name="settings_expired_in_folders">Abgelaufene Pässe mitanzeigen</string>
     <string name="settings_expired_in_folders_hint">Zeigt abgelaufene Pässe zusätzlich in ihrem ursprünglichen Ordner statt nur im Archiv.</string>
+    <string name="settings_upcoming_in_folders">Bevorstehende Pässe mitanzeigen</string>
+    <string name="settings_upcoming_in_folders_hint">Zeigt Pässe mit zukünftigem Startdatum zusätzlich unter „Alle Pässe“ und in ihrem ursprünglichen Ordner statt nur unter „Bevorstehend“.</string>
     <string name="settings_offline">Vollständig offline</string>
     <string name="settings_offline_hint">PassPorta funktioniert vollständig offline und benötigt keine Berechtigungen. Alle Daten verbleiben auf diesem Gerät.</string>
     <string name="settings_color_indigo">Indigo</string>

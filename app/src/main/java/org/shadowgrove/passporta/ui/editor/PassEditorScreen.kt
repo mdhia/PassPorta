@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -57,6 +58,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -237,9 +239,11 @@ fun PassEditorScreen(
                 onSelect = viewModel::updateBarcodeType,
             )
 
-            ExpirationSelector(
+            DateRangeSelector(
+                startDate = state.startDate,
                 expirationDate = state.expirationDate,
-                onSelect = viewModel::updateExpirationDate,
+                onSelectStart = viewModel::updateStartDate,
+                onSelectExpiration = viewModel::updateExpirationDate,
             )
 
             LogoSelector(
@@ -462,47 +466,112 @@ private fun SuggestionList(
     }
 }
 
-/** Optional expiration date. Once past, the pass moves to the archive. */
+/**
+ * Optional start and expiration date.
+ *
+ * Both fields share the section title "Date": from the user's point of view they are two ends
+ * of the same span, not two unrelated settings. A pass with a start date in the future gets its
+ * own "Upcoming" category in the overview until that date passes - see
+ * `PassOverviewViewModel`.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExpirationSelector(
+private fun DateRangeSelector(
+    startDate: Long?,
     expirationDate: Long?,
+    onSelectStart: (Long?) -> Unit,
+    onSelectExpiration: (Long?) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.editor_field_date),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        DateRow(
+            label = stringResource(R.string.editor_date_start),
+            date = startDate,
+            onSelect = onSelectStart,
+            // The start date marks the beginning of the day, not its end - unlike the
+            // expiration date it must not carry the end-of-day offset, otherwise a pass
+            // starting "today" would incorrectly count as upcoming for the whole day.
+            endOfDayOffset = false,
+            isSelectableDate = { utcTimeMillis ->
+                expirationDate == null || utcTimeMillis <= expirationDate - END_OF_DAY_OFFSET_MILLIS
+            },
+        )
+        DateRow(
+            label = stringResource(R.string.editor_date_end),
+            date = expirationDate,
+            onSelect = onSelectExpiration,
+            isSelectableDate = { utcTimeMillis ->
+                // `startDate` has no offset (see above), so it's already comparable as-is.
+                startDate == null || utcTimeMillis >= startDate
+            },
+        )
+    }
+}
+
+/** One row of [DateRangeSelector]: a labeled button opening the picker, plus a clear button. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateRow(
+    label: String,
+    date: Long?,
     onSelect: (Long?) -> Unit,
+    // Restricts the picker so the start/end invariant (end must not be before start) can't
+    // even be violated in the first place, instead of merely rejecting it afterwards.
+    isSelectableDate: (Long) -> Boolean = { true },
+    // Whether the stored value should be pushed to the end of the picked day (used for the
+    // expiration date, which should cover its whole day) or kept at its start (used for the
+    // start date, which should already count as valid from the beginning of that day).
+    endOfDayOffset: Boolean = true,
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
-    val label = expirationDate?.let {
+    val formatted = date?.let {
         remember(it) { DateFormat.getDateInstance(DateFormat.LONG).format(Date(it)) }
-    } ?: stringResource(R.string.editor_expiration_none)
+    } ?: stringResource(R.string.editor_date_none)
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
-            text = stringResource(R.string.editor_field_expiration),
-            style = MaterialTheme.typography.labelLarge,
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.width(DateRowLabelWidth),
         )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedButton(onClick = { showPicker = true }) { Text(label) }
-            if (expirationDate != null) {
-                TextButton(onClick = { onSelect(null) }) {
-                    Text(stringResource(R.string.editor_expiration_clear))
-                }
+        OutlinedButton(onClick = { showPicker = true }) { Text(formatted) }
+        if (date != null) {
+            TextButton(onClick = { onSelect(null) }) {
+                Text(stringResource(R.string.editor_expiration_clear))
             }
         }
     }
 
     if (showPicker) {
-        val pickerState = rememberDatePickerState(initialSelectedDateMillis = expirationDate)
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = date,
+            selectableDates = remember(isSelectableDate) {
+                object : SelectableDates {
+                    override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                        isSelectableDate.invoke(utcTimeMillis)
+                }
+            },
+        )
         DatePickerDialog(
             onDismissRequest = { showPicker = false },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // The picker returns midnight UTC. But a pass is valid for the whole
-                        // chosen day - so extend it to the end of the day.
-                        onSelect(pickerState.selectedDateMillis?.plus(END_OF_DAY_OFFSET_MILLIS))
+                        // The picker returns midnight UTC. For the expiration date, a pass is
+                        // valid for the whole chosen day - so extend it to the end of the day.
+                        // The start date, by contrast, should already count as valid from that
+                        // day's beginning, so it keeps the raw midnight value.
+                        val selected = pickerState.selectedDateMillis?.let {
+                            if (endOfDayOffset) it + END_OF_DAY_OFFSET_MILLIS else it
+                        }
+                        onSelect(selected)
                         showPicker = false
                     },
                 ) {
@@ -842,6 +911,9 @@ private const val MAX_SUGGESTIONS = 12
 /** Dimensions of the color swatches in the card color selection. */
 private val ColorSwatchSize = 40.dp
 private val ColorSwatchCheckSize = 20.dp
+
+/** Fixed width for the "Start"/"End" labels, so both date buttons line up. */
+private val DateRowLabelWidth = 44.dp
 
 /** Image types for the logo upload. */
 private val LOGO_MIME_TYPES = arrayOf("image/*")

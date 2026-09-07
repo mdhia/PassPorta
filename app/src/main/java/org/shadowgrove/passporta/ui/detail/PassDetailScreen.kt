@@ -223,7 +223,9 @@ private fun PassDetailContent(
     ) {
         PassLogo(pass = pass, size = PassLogoSizeOnDetail)
 
-        if (pass.isExpired) {
+        if (pass.isUpcoming) {
+            UpcomingBadge(pass = pass, modifier = Modifier.padding(top = 12.dp))
+        } else if (pass.isExpired) {
             ExpiredBadge(pass = pass, modifier = Modifier.padding(top = 12.dp))
         }
 
@@ -300,7 +302,7 @@ private fun PassDetailContent(
 /** Location and expiration date - both optional. */
 @Composable
 private fun MetaRows(pass: PassUi, modifier: Modifier = Modifier) {
-    if (!pass.hasLocation && pass.expirationDate == null) return
+    if (!pass.hasLocation && pass.expirationDate == null && pass.startDate == null) return
 
     val context = LocalContext.current
 
@@ -315,22 +317,48 @@ private fun MetaRows(pass: PassUi, modifier: Modifier = Modifier) {
             )
         }
 
-        if (pass.expirationDate != null) {
-            val formatted = remember(pass.expirationDate) {
-                DateFormat.getDateInstance(DateFormat.LONG).format(Date(pass.expirationDate))
-            }
-            MetaRow(
-                icon = Icons.Default.DateRange,
-                iconDescription = null,
-                text = stringResource(
-                    if (pass.isExpired) R.string.detail_expired_on else R.string.detail_valid_until,
-                    formatted,
-                ),
-                pass = pass,
-                onClick = null,
-            )
-        }
+        // Combined into a single line - "valid from X to Y" reads as one span, not as two
+        // unrelated facts stacked on top of each other.
+        DateRangeRow(pass = pass)
     }
+}
+
+/** Single combined line for start and/or expiration date - never two separate rows. */
+@Composable
+private fun DateRangeRow(pass: PassUi, modifier: Modifier = Modifier) {
+    // The start date is only worth mentioning while it still lies in the future; once passed,
+    // it adds no information beyond what the expiration date already says.
+    val showStart = pass.startDate != null && pass.isUpcoming
+    val showEnd = pass.expirationDate != null
+    if (!showStart && !showEnd) return
+
+    val text = when {
+        showStart && showEnd -> stringResource(
+            R.string.detail_valid_range,
+            formatDate(pass.startDate!!),
+            formatDate(pass.expirationDate!!),
+        )
+
+        showStart -> stringResource(R.string.detail_valid_from, formatDate(pass.startDate!!))
+
+        else -> stringResource(
+            if (pass.isExpired) R.string.detail_expired_on else R.string.detail_valid_until,
+            formatDate(pass.expirationDate!!),
+        )
+    }
+
+    MetaRow(
+        icon = Icons.Default.DateRange,
+        iconDescription = null,
+        text = text,
+        pass = pass,
+        onClick = null,
+    )
+}
+
+@Composable
+private fun formatDate(millis: Long): String = remember(millis) {
+    DateFormat.getDateInstance(DateFormat.LONG).format(Date(millis))
 }
 
 @Composable
@@ -367,6 +395,19 @@ private fun MetaRow(
 private fun ExpiredBadge(pass: PassUi, modifier: Modifier = Modifier) {
     Text(
         text = stringResource(R.string.detail_expired_badge),
+        style = MaterialTheme.typography.labelLarge,
+        color = pass.palette.background,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(pass.palette.content)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}
+
+@Composable
+private fun UpcomingBadge(pass: PassUi, modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(R.string.detail_upcoming_badge),
         style = MaterialTheme.typography.labelLarge,
         color = pass.palette.background,
         modifier = modifier

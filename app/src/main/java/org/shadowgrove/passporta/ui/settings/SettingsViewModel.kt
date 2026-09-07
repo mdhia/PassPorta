@@ -80,6 +80,8 @@ class SettingsViewModel(
 
     fun setShowExpiredInFolders(value: Boolean) = store.setShowExpiredInFolders(value)
 
+    fun setShowUpcomingInFolders(value: Boolean) = store.setShowUpcomingInFolders(value)
+
     /**
      * Switches the app's display language.
      *

@@ -17,7 +17,7 @@ import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
  */
 @Database(
     entities = [PassEntity::class, PassFieldEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(PassConverters::class)
