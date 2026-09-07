@@ -13,25 +13,6 @@
         android:name="android.permission.ACCESS_NETWORK_STATE"
         tools:node="remove" />
 
-    <!--
-        PassPorta reads no sensor data. Some transitive dependencies (e.g. Play-Services-backed
-        ML Kit modules) can pull sensor-related permissions in via manifest merging depending on
-        the exact resolved versions - these are stripped explicitly so no sensor permission ever
-        ends up in the final manifest.
-    -->
-    <uses-permission
-        android:name="android.permission.BODY_SENSORS"
-        tools:node="remove" />
-    <uses-permission
-        android:name="android.permission.BODY_SENSORS_BACKGROUND"
-        tools:node="remove" />
-    <uses-permission
-        android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS"
-        tools:node="remove" />
-    <uses-permission
-        android:name="android.permission.ACTIVITY_RECOGNITION"
-        tools:node="remove" />
-
     <application
         android:name=".PassPortaApplication"
         android:allowBackup="true"

@@ -85,7 +85,9 @@ import org.shadowgrove.passporta.ui.icons.PassIconLibrary
 import org.shadowgrove.passporta.ui.model.PassPalette
 import java.io.File
 import java.text.DateFormat
+import java.util.Calendar
 import java.util.Date
+import java.util.TimeZone
 
 /**
  * Form for reviewing and adjusting pass data before saving.
@@ -496,7 +498,7 @@ private fun DateRangeSelector(
             // starting "today" would incorrectly count as upcoming for the whole day.
             endOfDayOffset = false,
             isSelectableDate = { utcTimeMillis ->
-                expirationDate == null || utcTimeMillis <= expirationDate - END_OF_DAY_OFFSET_MILLIS
+                expirationDate == null || localStartOfDayMillis(utcTimeMillis) <= expirationDate
             },
         )
         DateRow(
@@ -504,8 +506,9 @@ private fun DateRangeSelector(
             date = expirationDate,
             onSelect = onSelectExpiration,
             isSelectableDate = { utcTimeMillis ->
-                // `startDate` has no offset (see above), so it's already comparable as-is.
-                startDate == null || utcTimeMillis >= startDate
+                // `startDate` is already the local start of its day, so it's directly
+                // comparable with the candidate day's local start.
+                startDate == null || localStartOfDayMillis(utcTimeMillis) >= startDate
             },
         )
     }
@@ -551,7 +554,10 @@ private fun DateRow(
 
     if (showPicker) {
         val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = date,
+            // `date` is stored as a local start/end-of-day value (see below), but the picker
+            // expects UTC midnight of the calendar day - so it has to be converted back for
+            // the initial selection to highlight the correct day.
+            initialSelectedDateMillis = date?.let(::utcMidnightMillisOfLocalDay),
             selectableDates = remember(isSelectableDate) {
                 object : SelectableDates {
                     override fun isSelectableDate(utcTimeMillis: Long): Boolean =
@@ -564,12 +570,17 @@ private fun DateRow(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // The picker returns midnight UTC. For the expiration date, a pass is
-                        // valid for the whole chosen day - so extend it to the end of the day.
-                        // The start date, by contrast, should already count as valid from that
-                        // day's beginning, so it keeps the raw midnight value.
+                        // The picker returns midnight UTC of the chosen calendar day. That
+                        // day is then re-expressed in the *local* timezone: for the
+                        // expiration date, a pass is valid for the whole chosen day, so it's
+                        // pushed to that day's local end; the start date, by contrast, should
+                        // already count as valid from that day's beginning, so it keeps the
+                        // local start. Using the local timezone (instead of just adding a
+                        // fixed UTC offset) is what keeps the displayed day - which is
+                        // formatted using the local timezone - in sync with the picked day,
+                        // regardless of the device's UTC offset.
                         val selected = pickerState.selectedDateMillis?.let {
-                            if (endOfDayOffset) it + END_OF_DAY_OFFSET_MILLIS else it
+                            if (endOfDayOffset) localEndOfDayMillis(it) else localStartOfDayMillis(it)
                         }
                         onSelect(selected)
                         showPicker = false
@@ -587,6 +598,66 @@ private fun DateRow(
             DatePicker(state = pickerState)
         }
     }
+}
+
+/** Year/month/day of [millis] in the device's default timezone. */
+private fun localDateParts(millis: Long): IntArray {
+    val calendar = Calendar.getInstance().apply { timeInMillis = millis }
+    return intArrayOf(
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH),
+    )
+}
+
+/** Year/month/day of the UTC calendar day represented by [utcMidnightMillis]. */
+private fun utcDateParts(utcMidnightMillis: Long): IntArray {
+    val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        timeInMillis = utcMidnightMillis
+    }
+    return intArrayOf(
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH),
+    )
+}
+
+/**
+ * Start of the local calendar day (00:00:00.000, default timezone) that the picker's UTC
+ * midnight [utcMidnightMillis] represents.
+ */
+private fun localStartOfDayMillis(utcMidnightMillis: Long): Long {
+    val (year, month, day) = utcDateParts(utcMidnightMillis).let { Triple(it[0], it[1], it[2]) }
+    return Calendar.getInstance().apply {
+        clear()
+        set(year, month, day, 0, 0, 0)
+    }.timeInMillis
+}
+
+/**
+ * End of the local calendar day (23:59:59.999, default timezone) that the picker's UTC
+ * midnight [utcMidnightMillis] represents.
+ */
+private fun localEndOfDayMillis(utcMidnightMillis: Long): Long {
+    val (year, month, day) = utcDateParts(utcMidnightMillis).let { Triple(it[0], it[1], it[2]) }
+    return Calendar.getInstance().apply {
+        clear()
+        set(year, month, day, 23, 59, 59)
+        set(Calendar.MILLISECOND, 999)
+    }.timeInMillis
+}
+
+/**
+ * UTC midnight of the calendar day that [localMillis] falls on in the default timezone - the
+ * inverse of [localStartOfDayMillis]/[localEndOfDayMillis], needed to feed a stored local value
+ * back into the picker.
+ */
+private fun utcMidnightMillisOfLocalDay(localMillis: Long): Long {
+    val (year, month, day) = localDateParts(localMillis).let { Triple(it[0], it[1], it[2]) }
+    return Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        clear()
+        set(year, month, day, 0, 0, 0)
+    }.timeInMillis
 }
 
 /**
@@ -918,7 +989,5 @@ private val DateRowLabelWidth = 44.dp
 /** Image types for the logo upload. */
 private val LOGO_MIME_TYPES = arrayOf("image/*")
 
-/** Milliseconds until the end of the chosen day (24 h minus 1 ms). */
-private const val END_OF_DAY_OFFSET_MILLIS = 24L * 60 * 60 * 1000 - 1
 
 

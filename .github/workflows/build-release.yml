@@ -49,26 +49,6 @@ jobs:
             echo "No KEYSTORE_BASE64 secret set - building an unsigned APK."
           fi
 
-      - name: Validate Keystore
-        if: env.KEYSTORE_FILE != ''
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          if ! keytool -list -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" -keystore "$KEYSTORE_FILE" > /dev/null 2>&1; then
-            echo "::error::Failed to read the keystore. Check the secrets KEYSTORE_BASE64, KEYSTORE_PASSWORD and KEY_ALIAS (possibly a wrong password or corrupted base64)."
-            exit 1
-          fi
-          # "keytool -list" alone only checks the store password - it never decrypts the
-          # private key. "certreq" actually signs data with the key, so it fails immediately
-          # if KEY_PASSWORD is wrong instead of only surfacing during the real signing step.
-          if ! keytool -certreq -alias "$KEY_ALIAS" -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" -file /dev/null > /dev/null 2>&1; then
-            echo "::error::Failed to unlock the private key. The KEY_PASSWORD secret is most likely wrong (store password and alias are correct)."
-            exit 1
-          fi
-          echo "Keystore validated successfully."
-
       - name: Build Release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}

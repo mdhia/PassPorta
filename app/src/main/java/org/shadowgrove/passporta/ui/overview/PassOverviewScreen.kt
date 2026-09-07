@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Draw
@@ -621,6 +622,7 @@ private fun FolderFilter.label(): String = when (this) {
 private fun FolderFilter.leadingIcon(): ImageVector? = when (this) {
     FolderFilter.Favorites -> Icons.Default.Favorite
     FolderFilter.Upcoming -> Icons.Default.Schedule
+    FolderFilter.Archive -> Icons.Default.Archive
     else -> null
 }
 
