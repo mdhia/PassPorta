@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Languages supported by PassPorta.
+
+    Only relevant from Android 13 onward: the system reads this list to show PassPorta under
+    Settings > Apps > Language. Without it, the in-app selection would still work, but the
+    entry in the system settings would be missing.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="de" />
+    <locale android:name="en" />
+</locale-config>
+

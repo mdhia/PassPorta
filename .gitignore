@@ -1,0 +1,18 @@
+*.iml
+.gradle
+/local.properties
+/app/build
+/app/release
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Signing keys - niemals ins Repository committen
+*.keystore
+*.jks
+keystore-base64.txt
+

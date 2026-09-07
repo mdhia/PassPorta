@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        PassPorta works 100% offline. Libraries such as ML Kit include network permissions via the
+        manifest merger—these are permanently removed here.
+    -->
+    <uses-permission
+        android:name="android.permission.INTERNET"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
+
+    <!--
+        PassPorta reads no sensor data. Some transitive dependencies (e.g. Play-Services-backed
+        ML Kit modules) can pull sensor-related permissions in via manifest merging depending on
+        the exact resolved versions - these are stripped explicitly so no sensor permission ever
+        ends up in the final manifest.
+    -->
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS_BACKGROUND"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACTIVITY_RECOGNITION"
+        tools:node="remove" />
+
+    <application
+        android:name=".PassPortaApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PassPorta">
+
+        <!--
+            Enables the AndroidX per-app language backport (API 24-32) to persist and restore
+            the chosen language automatically. From Android 13 onward, the system itself handles
+            storage via LocaleManager; this flag is then simply ignored.
+        -->
+        <meta-data
+            android:name="autoStoreLocales"
+            android:value="true" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.PassPorta"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Gateway for incoming passes. No dedicated interface: import, report results,
+            exit. Has its own taskAffinity so the import doesn't get stuck in the app's task.
+        -->
+        <activity
+            android:name=".ImportActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/import_activity_label"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.PassPorta.Invisible">
+
+            <!-- .pkpass files from file managers, email attachments, and downloads (correct MIME type) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:mimeType="application/vnd.apple.pkpass" />
+                <data android:mimeType="application/vnd.apple.pkpasses" />
+            </intent-filter>
+
+            <!-- Fallback: Many apps deliver .pkpass files as ZIP files or binary streams -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:pathPattern=".*\\.pkpass" />
+                <data android:pathPattern=".*\\..*\\.pkpass" />
+                <data android:pathPattern=".*\\..*\\..*\\.pkpass" />
+                <data android:pathPattern=".*\\.pkpasses" />
+            </intent-filter>
+
+            <!--
+                “Add to Google Wallet” links with an embedded JWT.
+
+                “autoVerify” is intentionally set to “false”: the domains belong to Google, so an App Links
+                verification cannot succeed. The user enables the interception once
+                via Settings > Apps > PassPorta > Open by default.
+
+                A separate filter for each host, because Android combines all <data> attributes within a filter
+                as a cross-product—otherwise, the path prefix would also apply to the other
+                hosts, and PassPorta would intercept all traffic to pay.google.com.
+            -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="pay.google.com" />
+                <data android:host="wallet.google.com" />
+                <data android:pathPrefix="/gp/v/save" />
+            </intent-filter>
+
+            <!-- Wallet Short Links: Any path; the answer will be provided offline as a hint. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="pay.app.goo.gl" />
+            </intent-filter>
+
+            <!-- Share menu: .pkpass file or a link with a Wallet JWT -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="application/vnd.apple.pkpass" />
+                <data android:mimeType="application/vnd.apple.pkpasses" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Shares only the stored original documents with other apps
+            (e.g., a PDF app). Does not export them; access is granted via a temporary
+            read permission for each intent.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!--
+            Quick Settings tile ("shade" pull-down): shows the app icon and simply opens
+            MainActivity when tapped. Requires API 24+, same as the app's minSdk.
+        -->
+        <service
+            android:name=".tile.PassPortaTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_qs_tile"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

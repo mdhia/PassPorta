@@ -1,0 +1,171 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">PassPorta</string>
+
+    <!-- Uebersicht -->
+    <string name="overview_app_icon">PassPorta</string>
+    <string name="overview_all_folders">Alle Pässe</string>
+    <string name="overview_favorites">Favoriten</string>
+    <string name="overview_add_pass">Pass hinzufügen</string>
+    <string name="overview_empty_title">Noch keine Pässe</string>
+    <string name="overview_empty_message">Öffne eine .pkpass-Datei oder teile einen Wallet-Link mit PassPorta.</string>
+    <string name="overview_archive">Archiv</string>
+    <string name="overview_archive_empty_title">Archiv ist leer</string>
+    <string name="overview_archive_empty_message">Abgelaufene Pässe sammeln sich hier automatisch.</string>
+    <string name="overview_favorite_badge">Favorit</string>
+
+    <!-- Detailansicht -->
+    <string name="detail_back">Zurück</string>
+    <string name="detail_edit">Pass bearbeiten</string>
+    <string name="detail_delete">Pass löschen</string>
+    <string name="detail_favorite_add">Zu Favoriten hinzufügen</string>
+    <string name="detail_favorite_remove">Aus Favoriten entfernen</string>
+    <string name="detail_barcode">Barcode von %1$s</string>
+    <string name="detail_barcode_error">Barcode konnte nicht erzeugt werden.</string>
+    <string name="detail_logo">Logo von %1$s</string>
+    <string name="detail_location">Ort</string>
+    <string name="detail_no_maps_app">Keine Karten-App gefunden.</string>
+    <string name="detail_no_app_for_link">Keine App gefunden, die das öffnen kann.</string>
+    <string name="detail_copied">In die Zwischenablage kopiert</string>
+    <string name="detail_copy_action">Kopieren</string>
+    <string name="detail_valid_until">Gültig bis %1$s</string>
+    <string name="detail_expired_on">Abgelaufen am %1$s</string>
+    <string name="detail_expired_badge">Abgelaufen</string>
+    <string name="detail_open_original">Originaldokument ansehen</string>
+
+    <!-- Originaldokument -->
+    <string name="document_title">Originaldokument</string>
+    <string name="document_open_external">Extern öffnen</string>
+    <string name="document_not_renderable">Dieses Format lässt sich in PassPorta nicht anzeigen.</string>
+    <string name="document_missing">Das Originaldokument ist nicht mehr vorhanden.</string>
+    <string name="document_no_app">Keine App gefunden, die diese Datei öffnen kann.</string>
+    <string name="document_previous_page">Zurück</string>
+    <string name="document_next_page">Weiter</string>
+    <!-- Kein Plural: %1$d ist eine laufende Nummer, keine Menge. -->
+    <string name="document_page_of" tools:ignore="PluralsCandidate">Seite %1$d von %2$d</string>
+
+    <!-- Zoom-Modus (Phase 4) -->
+    <string name="zoom_hint">Zum Vergrößern tippen</string>
+    <string name="zoom_close">Schließen</string>
+
+    <!-- Pass hinzufügen -->
+    <string name="add_pkpass_title">Pass-Datei öffnen</string>
+    <string name="add_pkpass_subtitle">.pkpass aus Downloads oder E-Mail-Anhang</string>
+    <string name="add_camera_title">Mit Kamera aufnehmen</string>
+    <string name="add_camera_subtitle">Ticket oder Karte abfotografieren und importieren</string>
+    <string name="add_scan_title">Bild oder PDF importieren</string>
+    <string name="add_scan_subtitle">Screenshot oder Ticket-PDF importieren</string>
+    <string name="add_manual_title">Manuell anlegen</string>
+    <string name="add_manual_subtitle">Alle Angaben selbst eintragen</string>
+    <string name="camera_unavailable">Es wurde keine Kamera-App gefunden.</string>
+    <string name="camera_capture_failed">Die Kamera hat kein Bild gespeichert. Bitte erneut versuchen.</string>
+
+    <!-- Formular (Phase 5) -->
+    <string name="editor_title_new">Neuer Pass</string>
+    <string name="editor_title_edit">Pass bearbeiten</string>
+    <string name="editor_save">Speichern</string>
+    <string name="editor_scanning">Bild wird ausgewertet …</string>
+    <string name="editor_scan_no_barcode">Es wurde kein Barcode gefunden. Bitte die Daten unten selbst eintragen.</string>
+    <string name="editor_scan_unreadable">Das Bild konnte nicht gelesen werden. Bitte die Aufnahme wiederholen oder die Daten unten selbst eintragen.</string>
+    <string name="editor_suggestions">Erkannter Text</string>
+    <string name="editor_field_title">Titel</string>
+    <string name="editor_field_subtitle">Untertitel</string>
+    <string name="editor_field_owner">Name des Besitzers</string>
+    <string name="editor_field_identifier">Karten-/Kundennummer</string>
+    <string name="editor_field_folder">Ordner</string>
+    <string name="editor_field_barcode_data">Barcode-Inhalt</string>
+    <string name="editor_field_barcode_hint">Genau die Zeichen, die der Scanner lesen soll.</string>
+    <string name="editor_field_barcode_type">Barcode-Typ</string>
+    <string name="editor_field_color">Kartenfarbe</string>
+    <string name="editor_color_selected">Ausgewählte Farbe</string>
+    <string name="editor_field_location">Ort</string>
+    <string name="editor_field_expiration">Ablaufdatum</string>
+    <string name="editor_expiration_none">Kein Ablaufdatum</string>
+    <string name="editor_expiration_clear">Entfernen</string>
+    <string name="editor_field_logo">Logo</string>
+    <string name="editor_logo_choose">Bild wählen</string>
+    <string name="editor_logo_remove">Entfernen</string>
+    <string name="editor_logo_icon">Symbol wählen</string>
+    <string name="editor_icon_title">Symbol wählen</string>
+    <string name="editor_icon_search">Symbol suchen …</string>
+    <string name="editor_icon_none">Kein Treffer für „%1$s“.</string>
+    <string name="editor_folder_suggestions">Vorhandene Ordner</string>
+
+    <!-- Suche in der Übersicht -->
+    <string name="overview_search">Suchen</string>
+    <string name="overview_search_hint">Pässe durchsuchen …</string>
+    <string name="overview_search_clear">Eingabe löschen</string>
+    <string name="overview_search_empty_title">Nichts gefunden</string>
+    <string name="overview_search_empty_message">Für „%1$s“ gibt es keinen Treffer in Titel, Name, Nummer, Ordner oder Ort.</string>
+
+    <!-- Einstellungen -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_section_language">Sprache</string>
+    <string name="settings_language_system">Systemsprache</string>
+    <string name="settings_language_german">Deutsch</string>
+    <string name="settings_language_english">Englisch</string>
+    <string name="settings_section_appearance">Farbe</string>
+    <string name="settings_section_mode">Erscheinungsbild</string>
+    <string name="settings_section_behaviour">Verhalten</string>
+    <string name="settings_section_about">Über PassPorta</string>
+
+    <!-- Datensicherung -->
+    <string name="settings_section_backup">Datensicherung</string>
+    <string name="settings_backup_export">Daten exportieren</string>
+    <string name="settings_backup_export_hint">Alle Pässe, Bilder und Einstellungen als ZIP-Datei sichern.</string>
+    <string name="settings_backup_import">Daten importieren</string>
+    <string name="settings_backup_import_hint">Eine zuvor exportierte ZIP-Datei wiederherstellen. Vorhandene Pässe mit gleicher Kennung werden ersetzt.</string>
+    <string name="settings_backup_export_success">%1$d Pässe exportiert.</string>
+    <string name="settings_backup_import_success">%1$d Pässe importiert, %2$d aktualisiert.</string>
+    <string name="settings_backup_error_write_failed">Die Sicherung konnte nicht geschrieben werden.</string>
+    <string name="settings_backup_error_read_failed">Die Datei konnte nicht gelesen werden.</string>
+    <string name="settings_backup_error_invalid_file">Das ist keine gültige PassPorta-Sicherung.</string>
+    <string name="settings_dynamic_color">Systemfarben verwenden</string>
+    <string name="settings_dynamic_color_hint">Übernimmt ab Android 12 die Farben des Hintergrundbilds und überschreibt dabei die Auswahl oben.</string>
+    <string name="settings_mode_system">Wie das System</string>
+    <string name="settings_mode_light">Hell</string>
+    <string name="settings_mode_dark">Dunkel</string>
+    <string name="settings_fullscreen">Barcode sofort vergrößern</string>
+    <string name="settings_fullscreen_hint">Öffnet einen Pass direkt im Vollbild mit maximaler Helligkeit.</string>
+    <string name="settings_expired_in_folders">Abgelaufene Pässe mitanzeigen</string>
+    <string name="settings_expired_in_folders_hint">Zeigt abgelaufene Pässe zusätzlich in ihrem ursprünglichen Ordner statt nur im Archiv.</string>
+    <string name="settings_offline">Vollständig offline</string>
+    <string name="settings_offline_hint">PassPorta funktioniert vollständig offline und benötigt keine Berechtigungen. Alle Daten verbleiben auf diesem Gerät.</string>
+    <string name="settings_color_indigo">Indigo</string>
+    <string name="settings_color_teal">Petrol</string>
+    <string name="settings_color_green">Grün</string>
+    <string name="settings_color_amber">Bernstein</string>
+    <string name="settings_color_orange">Orange</string>
+    <string name="settings_color_red">Rot</string>
+    <string name="settings_color_violet">Violett</string>
+    <string name="settings_color_slate">Blaugrau</string>
+    <string name="editor_fields_title">Weitere Felder</string>
+    <string name="editor_field_label">Bezeichnung</string>
+    <string name="editor_field_value">Wert</string>
+    <string name="editor_field_add">Feld hinzufügen</string>
+    <string name="editor_field_remove">Feld entfernen</string>
+
+    <!-- Import -->
+    <string name="import_activity_label">Zu PassPorta hinzufügen</string>
+    <plurals name="import_success">
+        <item quantity="one">Pass importiert.</item>
+        <item quantity="other">%1$d Pässe importiert.</item>
+    </plurals>
+    <plurals name="import_updated">
+        <item quantity="one">Ein bereits vorhandener Pass wurde aktualisiert.</item>
+        <item quantity="other">%1$d bereits vorhandene Pässe wurden aktualisiert.</item>
+    </plurals>
+    <string name="import_integrity_warning">Achtung: Die Prüfsummen im Archiv stimmen nicht – der Pass wurde möglicherweise verändert.</string>
+    <string name="import_error_unsupported_source">Hier ist kein Pass enthalten.</string>
+    <string name="import_error_read_failed">Die Datei konnte nicht gelesen werden.</string>
+    <string name="import_error_invalid_pkpass">Das ist keine gültige .pkpass-Datei.</string>
+    <string name="import_error_invalid_jwt">Der Wallet-Link enthält keine lesbaren Passdaten.</string>
+    <string name="import_error_short_link">Kurzlinks lassen sich offline nicht auflösen. Öffne den Link im Browser und teile die vollständige Adresse mit PassPorta.</string>
+    <string name="import_error_no_barcode">Kein Barcode gefunden – ohne ihn lässt sich der Pass nicht nutzen.</string>
+
+    <!-- Easter Egg -->
+    <string name="easter_egg_cake_message">The cake is a lie!</string>
+</resources>
+
+
+
+

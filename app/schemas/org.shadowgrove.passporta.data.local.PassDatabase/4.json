@@ -1,0 +1,267 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "2a46c1555dc2707aa148c91e6d03cf6b",
+    "entities": [
+      {
+        "tableName": "passes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `folder_name` TEXT NOT NULL, `is_favorite` INTEGER NOT NULL DEFAULT 0, `title` TEXT NOT NULL, `subtitle` TEXT, `owner_name` TEXT NOT NULL, `identifier` TEXT, `barcode_data` TEXT NOT NULL, `barcode_type` TEXT NOT NULL, `barcode_alt_text` TEXT, `barcode_ecc` TEXT, `barcode_encoding` TEXT, `background_color` INTEGER NOT NULL, `logo_path` TEXT, `icon_key` TEXT, `hero_image_path` TEXT, `original_file_path` TEXT, `original_file_name` TEXT, `original_mime_type` TEXT, `expiration_date` INTEGER, `location` TEXT, `location_latitude` REAL, `location_longitude` REAL, `source` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "folderName",
+            "columnName": "folder_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFavorite",
+            "columnName": "is_favorite",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subtitle",
+            "columnName": "subtitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ownerName",
+            "columnName": "owner_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "identifier",
+            "columnName": "identifier",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "barcodeData",
+            "columnName": "barcode_data",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "barcodeType",
+            "columnName": "barcode_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "barcodeAltText",
+            "columnName": "barcode_alt_text",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "barcodeEcc",
+            "columnName": "barcode_ecc",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "barcodeEncoding",
+            "columnName": "barcode_encoding",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "backgroundColor",
+            "columnName": "background_color",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "logoPath",
+            "columnName": "logo_path",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "iconKey",
+            "columnName": "icon_key",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "heroImagePath",
+            "columnName": "hero_image_path",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "originalFilePath",
+            "columnName": "original_file_path",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "originalFileName",
+            "columnName": "original_file_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "originalMimeType",
+            "columnName": "original_mime_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "expirationDate",
+            "columnName": "expiration_date",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "location",
+            "columnName": "location",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "locationLatitude",
+            "columnName": "location_latitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "locationLongitude",
+            "columnName": "location_longitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_passes_folder_name",
+            "unique": false,
+            "columnNames": [
+              "folder_name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_passes_folder_name` ON `${TABLE_NAME}` (`folder_name`)"
+          },
+          {
+            "name": "index_passes_updated_at",
+            "unique": false,
+            "columnNames": [
+              "updated_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_passes_updated_at` ON `${TABLE_NAME}` (`updated_at`)"
+          },
+          {
+            "name": "index_passes_barcode_data",
+            "unique": false,
+            "columnNames": [
+              "barcode_data"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_passes_barcode_data` ON `${TABLE_NAME}` (`barcode_data`)"
+          }
+        ]
+      },
+      {
+        "tableName": "pass_fields",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `pass_id` TEXT NOT NULL, `label` TEXT, `value` TEXT NOT NULL, `section` TEXT NOT NULL, `position` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`pass_id`) REFERENCES `passes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "passId",
+            "columnName": "pass_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "label",
+            "columnName": "label",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "section",
+            "columnName": "section",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_pass_fields_pass_id",
+            "unique": false,
+            "columnNames": [
+              "pass_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pass_fields_pass_id` ON `${TABLE_NAME}` (`pass_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "passes",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "pass_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2a46c1555dc2707aa148c91e6d03cf6b')"
+    ]
+  }
+}

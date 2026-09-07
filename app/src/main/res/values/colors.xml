@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Background color of the app icon.
+
+        As a separate resource rather than a literal in the vector: Adaptive icons often require a solid color for the
+        background layer, which allows it to be changed in one place.
+    -->
+    <color name="ic_launcher_background">#3F51B5</color>
+</resources>
+

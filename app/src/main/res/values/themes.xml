@@ -1,0 +1,26 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+        Base theme. It now serves only as a window frame (system bars, background)—the
+        actual appearance comes from the Compose theme (ui/theme).
+    -->
+    <style name="Base.Theme.PassPorta" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">?attr/isLightTheme</item>
+    </style>
+
+    <style name="Theme.PassPorta" parent="Base.Theme.PassPorta" />
+
+    <!--
+        Invisible theme for the ImportActivity: It does not have its own user interface, but
+        imports data in the background and displays the result via a toast.
+    -->
+    <style name="Theme.PassPorta.Invisible" parent="Theme.PassPorta">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+</resources>

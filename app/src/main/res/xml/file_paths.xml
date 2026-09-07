@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Exposure of the preserved original documents.
+
+    `filesDir` is private; a direct file:// path would not be readable for a foreign app and
+    would trigger a FileUriExposedException from Android 7 onward. Only the subfolder "originals"
+    is exposed - logos, hero images and the database remain unreachable.
+-->
+<paths>
+    <files-path
+        name="pass_originals"
+        path="originals/" />
+
+    <!--
+        Destination folder for camera photos. The camera app saves photos here; PassPorta then reads the
+        file for analysis. Intentionally cached: After saving the passport,
+        the image is stored as the original document in the “originals” folder anyway.
+    -->
+    <cache-path
+        name="pass_camera"
+        path="camera/" />
+</paths>
+

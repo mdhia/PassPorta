@@ -1,0 +1,852 @@
+package org.shadowgrove.passporta.ui.editor
+
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ViewHeadline
+import androidx.compose.material.icons.filled.ViewWeek
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import org.shadowgrove.passporta.R
+import org.shadowgrove.passporta.data.local.entity.BarcodeType
+import org.shadowgrove.passporta.ui.icons.PassIcon
+import org.shadowgrove.passporta.ui.icons.PassIconLibrary
+import org.shadowgrove.passporta.ui.model.PassPalette
+import java.io.File
+import java.text.DateFormat
+import java.util.Date
+
+/**
+ * Form for reviewing and adjusting pass data before saving.
+ *
+ * Pre-filled from a scan (image/PDF), from an existing pass, or empty for manual creation. All
+ * fields remain editable - the scan heuristic only provides suggestions.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PassEditorScreen(
+    onBack: () -> Unit,
+    onSaved: (String) -> Unit,
+    viewModel: PassEditorViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        stringResource(
+                            if (state.isEditingExisting) {
+                                R.string.editor_title_edit
+                            } else {
+                                R.string.editor_title_new
+                            },
+                        ),
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.detail_back),
+                        )
+                    }
+                },
+            )
+        },
+        floatingActionButton = {
+            // There's nothing to save yet while the analysis is running.
+            if (!state.isScanning) {
+                SaveFab(
+                    enabled = state.canSave,
+                    onClick = { viewModel.save(onSaved) },
+                    // Same spacing as the content: otherwise the button would sit behind the
+                    // keyboard and be unreachable while filling in the form.
+                    modifier = Modifier.windowInsetsPadding(
+                        WindowInsets.ime.exclude(WindowInsets.navigationBars),
+                    ),
+                )
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End,
+    ) { innerPadding ->
+        if (state.isScanning) {
+            ScanningIndicator(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            )
+            return@Scaffold
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                // Space for the keyboard.
+                //
+                // Deliberately a layout modifier and not the detour via the scaffold's
+                // `contentWindowInsets`: `windowInsetsPadding` re-reads the animated inset on
+                // every measure pass and reliably falls back to zero when closed. A
+                // once-computed `PaddingValues`, by contrast, could remain stuck at the value
+                // of the opened keyboard - the content would then stay shrunk.
+                //
+                // `exclude` prevents double spacing: the navigation bar is already included in
+                // `innerPadding`, and the keyboard covers it anyway.
+                .windowInsetsPadding(WindowInsets.ime.exclude(WindowInsets.navigationBars))
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (state.scanFailed) {
+                Text(
+                    text = stringResource(R.string.editor_scan_unreadable),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            } else if (state.scanFoundNoBarcode) {
+                Text(
+                    text = stringResource(R.string.editor_scan_no_barcode),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            OutlinedTextField(
+                value = state.title,
+                onValueChange = viewModel::updateTitle,
+                label = { Text(stringResource(R.string.editor_field_title)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = state.subtitle,
+                onValueChange = viewModel::updateSubtitle,
+                label = { Text(stringResource(R.string.editor_field_subtitle)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = state.ownerName,
+                onValueChange = viewModel::updateOwnerName,
+                label = { Text(stringResource(R.string.editor_field_owner)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = state.identifier,
+                onValueChange = viewModel::updateIdentifier,
+                label = { Text(stringResource(R.string.editor_field_identifier)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            FolderSelector(
+                folderName = state.folderName,
+                suggestions = state.folderSuggestions,
+                onValueChange = viewModel::updateFolderName,
+            )
+            OutlinedTextField(
+                value = state.location,
+                onValueChange = viewModel::updateLocation,
+                label = { Text(stringResource(R.string.editor_field_location)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = state.barcodeData,
+                onValueChange = viewModel::updateBarcodeData,
+                label = { Text(stringResource(R.string.editor_field_barcode_data)) },
+                supportingText = { Text(stringResource(R.string.editor_field_barcode_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            BarcodeTypeSelector(
+                selected = state.barcodeType,
+                onSelect = viewModel::updateBarcodeType,
+            )
+
+            ExpirationSelector(
+                expirationDate = state.expirationDate,
+                onSelect = viewModel::updateExpirationDate,
+            )
+
+            LogoSelector(
+                logoFile = state.logoFile,
+                icon = state.icon,
+                onPick = viewModel::pickLogo,
+                onPickIcon = viewModel::pickIcon,
+                onRemove = viewModel::removeLogo,
+                onRemoveIcon = viewModel::removeIcon,
+            )
+
+            ColorSelector(
+                selected = state.backgroundColor,
+                onSelect = viewModel::updateBackgroundColor,
+            )
+
+            FieldEditor(
+                fields = state.fields,
+                onLabelChange = viewModel::updateFieldLabel,
+                onValueChange = viewModel::updateFieldValue,
+                onRemove = viewModel::removeField,
+                onAdd = viewModel::addField,
+            )
+
+            if (state.suggestions.isNotEmpty()) {
+                SuggestionList(
+                    suggestions = state.suggestions,
+                    onPick = viewModel::updateTitle,
+                )
+            }
+
+            // Space for the FAB, so it doesn't cover the last field.
+            Spacer(modifier = Modifier.height(80.dp))
+        }
+    }
+}
+
+/**
+ * Round save button.
+ *
+ * Material 3 has no disabled FAB. As long as title or barcode are missing, it is therefore shown
+ * dimmed and ignores clicks - but the button doesn't disappear, so it stays recognizable where
+ * saving happens.
+ */
+@Composable
+private fun SaveFab(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FloatingActionButton(
+        onClick = { if (enabled) onClick() },
+        containerColor = if (enabled) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        contentColor = if (enabled) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        modifier = modifier,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = stringResource(R.string.editor_save),
+        )
+    }
+}
+
+@Composable
+private fun ScanningIndicator(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircularProgressIndicator()
+        Text(
+            text = stringResource(R.string.editor_scanning),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BarcodeTypeSelector(
+    selected: BarcodeType,
+    onSelect: (BarcodeType) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = selected.storageKey,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.editor_field_barcode_type)) },
+            leadingIcon = { BarcodeTypeIcon(selected) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            BarcodeType.entries.forEach { type ->
+                DropdownMenuItem(
+                    text = { Text(type.storageKey) },
+                    leadingIcon = { BarcodeTypeIcon(type) },
+                    onClick = {
+                        onSelect(type)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Symbol representing the respective format.
+ *
+ * The icons reflect the structure, not the name: area patterns for the 2D formats, stacked
+ * lines for PDF417, vertical bars for CODE128. ITF gets the digit symbol - that this format
+ * only encodes an even number of digits is exactly the information needed when choosing it.
+ */
+@Composable
+private fun BarcodeTypeIcon(type: BarcodeType) {
+    Icon(
+        imageVector = when (type) {
+            BarcodeType.QR -> Icons.Default.QrCode2
+            BarcodeType.AZTEC -> Icons.Default.GridOn
+            BarcodeType.PDF417 -> Icons.Default.ViewHeadline
+            BarcodeType.CODE128 -> Icons.Default.ViewWeek
+            BarcodeType.ITF -> Icons.Default.Numbers
+        },
+        contentDescription = null,
+    )
+}
+
+@Composable
+private fun ColorSelector(
+    selected: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.editor_field_color),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            PassColorSwatches.forEach { color ->
+                val palette = PassPalette.from(color)
+                val selectedSwatch = color == selected
+                Box(
+                    modifier = Modifier
+                        .size(ColorSwatchSize)
+                        .clip(CircleShape)
+                        .background(palette.background)
+                        .border(
+                            width = if (selectedSwatch) 3.dp else 1.dp,
+                            color = if (selectedSwatch) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant
+                            },
+                            shape = CircleShape,
+                        )
+                        .clickable { onSelect(color) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selectedSwatch) {
+                        // The checkmark carries the field's contrast color: a fixed white
+                        // checkmark would fade away on light colors like yellow.
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = stringResource(R.string.editor_color_selected),
+                            tint = palette.content,
+                            modifier = Modifier.size(ColorSwatchCheckSize),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Recognized text lines as tappable suggestions for the title. */
+@Composable
+private fun SuggestionList(
+    suggestions: List<String>,
+    onPick: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.editor_suggestions),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            suggestions.take(MAX_SUGGESTIONS).forEach { suggestion ->
+                AssistChip(
+                    onClick = { onPick(suggestion) },
+                    label = { Text(suggestion, maxLines = 1) },
+                )
+            }
+        }
+    }
+}
+
+/** Optional expiration date. Once past, the pass moves to the archive. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExpirationSelector(
+    expirationDate: Long?,
+    onSelect: (Long?) -> Unit,
+) {
+    var showPicker by remember { mutableStateOf(false) }
+
+    val label = expirationDate?.let {
+        remember(it) { DateFormat.getDateInstance(DateFormat.LONG).format(Date(it)) }
+    } ?: stringResource(R.string.editor_expiration_none)
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.editor_field_expiration),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedButton(onClick = { showPicker = true }) { Text(label) }
+            if (expirationDate != null) {
+                TextButton(onClick = { onSelect(null) }) {
+                    Text(stringResource(R.string.editor_expiration_clear))
+                }
+            }
+        }
+    }
+
+    if (showPicker) {
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = expirationDate)
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // The picker returns midnight UTC. But a pass is valid for the whole
+                        // chosen day - so extend it to the end of the day.
+                        onSelect(pickerState.selectedDateMillis?.plus(END_OF_DAY_OFFSET_MILLIS))
+                        showPicker = false
+                    },
+                ) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        ) {
+            DatePicker(state = pickerState)
+        }
+    }
+}
+
+/**
+ * Folder field with suggestions from the already existing categories.
+ *
+ * Deliberately a freely editable field with a dropdown and not a plain selection list: the
+ * first pass of a new category must be creatable without the category already existing. The
+ * dropdown prevents the most common mistake - a duplicate due to a differing spelling.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FolderSelector(
+    folderName: String,
+    suggestions: List<String>,
+    onValueChange: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // While typing, show only matching suggestions; an exact match would just repeat the
+    // input.
+    val visible = remember(folderName, suggestions) {
+        suggestions.filter {
+            it.contains(folderName.trim(), ignoreCase = true) && !it.equals(folderName, true)
+        }
+    }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded && visible.isNotEmpty(),
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = folderName,
+            onValueChange = {
+                onValueChange(it)
+                expanded = true
+            },
+            label = { Text(stringResource(R.string.editor_field_folder)) },
+            singleLine = true,
+            trailingIcon = {
+                if (suggestions.isNotEmpty()) {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                // `MenuAnchorType.PrimaryEditable` keeps the field editable - a
+                // `PrimaryNotEditable` would make every tap just open the menu.
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
+        )
+
+        ExposedDropdownMenu(expanded = expanded && visible.isNotEmpty(), onDismissRequest = { expanded = false }) {
+            visible.forEach { suggestion ->
+                DropdownMenuItem(
+                    text = { Text(suggestion) },
+                    onClick = {
+                        onValueChange(suggestion)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** Logo upload and symbol selection with a round preview. */
+@Composable
+private fun LogoSelector(
+    logoFile: File?,
+    icon: PassIcon?,
+    onPick: (Uri) -> Unit,
+    onPickIcon: (PassIcon) -> Unit,
+    onRemove: () -> Unit,
+    onRemoveIcon: () -> Unit,
+) {
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let(onPick) }
+
+    var showIconPicker by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.editor_field_logo),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                when {
+                    logoFile != null -> AsyncImage(
+                        model = logoFile,
+                        contentDescription = stringResource(R.string.editor_field_logo),
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(6.dp),
+                    )
+
+                    icon != null -> Icon(
+                        imageVector = icon.image,
+                        contentDescription = icon.label,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+
+            // "Remove" sits below the two selection buttons, not next to them: in one row
+            // they'd barely be readable as a trio on narrow devices, and the destructive
+            // command should stand apart from the two equal-ranking alternatives anyway.
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { picker.launch(LOGO_MIME_TYPES) }) {
+                        Text(stringResource(R.string.editor_logo_choose))
+                    }
+                    OutlinedButton(onClick = { showIconPicker = true }) {
+                        Text(stringResource(R.string.editor_logo_icon))
+                    }
+                }
+
+                if (logoFile != null) {
+                    TextButton(onClick = onRemove) {
+                        Text(stringResource(R.string.editor_logo_remove))
+                    }
+                } else if (icon != null) {
+                    TextButton(onClick = onRemoveIcon) {
+                        Text(stringResource(R.string.editor_logo_remove))
+                    }
+                }
+            }
+        }
+    }
+
+    if (showIconPicker) {
+        IconPickerDialog(
+            selected = icon,
+            onSelect = {
+                onPickIcon(it)
+                showIconPicker = false
+            },
+            onDismiss = { showIconPicker = false },
+        )
+    }
+}
+
+/**
+ * Searchable symbol selection.
+ *
+ * The list is deliberately curated (see [PassIconLibrary]) - a search among thirty matching
+ * symbols reaches the goal faster than among three thousand mostly unsuitable ones.
+ */
+@Composable
+private fun IconPickerDialog(
+    selected: PassIcon?,
+    onSelect: (PassIcon) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    val results = remember(query) { PassIconLibrary.search(query) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.editor_icon_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text(stringResource(R.string.editor_icon_search)) },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.Search, contentDescription = null)
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                if (results.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.editor_icon_none, query),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(72.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        // Fixed height: in a dialog, a list has no natural upper limit; without
+                        // it, the grid would blow up the screen.
+                        modifier = Modifier.height(280.dp),
+                    ) {
+                        items(items = results, key = { it.key }) { option ->
+                            IconOption(
+                                icon = option,
+                                selected = option.key == selected?.key,
+                                onClick = { onSelect(option) },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun IconOption(
+    icon: PassIcon,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val background = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(background),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon.image,
+                contentDescription = icon.label,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Text(
+            text = icon.label,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/**
+ * Additional fields as label-value pairs.
+ *
+ * Deliberately a simple list without drag-and-drop: the order results from creation, which is
+ * entirely sufficient for the typical two to five fields.
+ */
+@Composable
+private fun FieldEditor(
+    fields: List<EditableField>,
+    onLabelChange: (String, String) -> Unit,
+    onValueChange: (String, String) -> Unit,
+    onRemove: (String) -> Unit,
+    onAdd: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.editor_fields_title),
+            style = MaterialTheme.typography.labelLarge,
+        )
+
+        fields.forEach { field ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                OutlinedTextField(
+                    value = field.label,
+                    onValueChange = { onLabelChange(field.id, it) },
+                    label = { Text(stringResource(R.string.editor_field_label)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = field.value,
+                    onValueChange = { onValueChange(field.id, it) },
+                    label = { Text(stringResource(R.string.editor_field_value)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1.4f),
+                )
+                IconButton(onClick = { onRemove(field.id) }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.editor_field_remove),
+                    )
+                }
+            }
+        }
+
+        TextButton(onClick = onAdd) {
+            Icon(imageVector = Icons.Default.Add, contentDescription = null)
+            Text(
+                text = stringResource(R.string.editor_field_add),
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+    }
+}
+
+private const val MAX_SUGGESTIONS = 12
+
+/** Dimensions of the color swatches in the card color selection. */
+private val ColorSwatchSize = 40.dp
+private val ColorSwatchCheckSize = 20.dp
+
+/** Image types for the logo upload. */
+private val LOGO_MIME_TYPES = arrayOf("image/*")
+
+/** Milliseconds until the end of the chosen day (24 h minus 1 ms). */
+private const val END_OF_DAY_OFFSET_MILLIS = 24L * 60 * 60 * 1000 - 1
+
+
