@@ -18,7 +18,7 @@ All data stays on your device inside a local Room database. No account required.
 
 ### Download Pre-built APK
 
-1. Go to [Releases](../../releases).
+1. Go to [Releases](https://github.com/mdhia/PassPorta/releases/latest).
 2. Download the latest `PassPorta-<date>.apk`.
 3. Enable "Install unknown apps" for your file manager or browser if prompted (Android Settings → Apps → Special app access).
 4. Open the APK to install.
@@ -30,6 +30,7 @@ All data stays on your device inside a local Room database. No account required.
 Prerequisites: JDK 17 and the Android SDK (or Android Studio).
 
 ```powershell
-git clone [https://github.com/mdhia/PassPorta.git](https://github.com/mdhia/PassPorta.git)
+git clone https://github.com/mdhia/PassPorta.git
 cd PassPorta
 ./gradlew assembleDebug
+```
