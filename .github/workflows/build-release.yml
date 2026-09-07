@@ -9,6 +9,7 @@ on:
       - '**/*.kts'
       - '**/*.java'
       - '**/*.xml'
+      - '.github/workflows/build-release.yml'
 
 permissions:
   contents: write
@@ -39,13 +40,13 @@ jobs:
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
             KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
-            # --ignore-garbage sorgt dafuer, dass versehentlich im Secret enthaltene
-            # CR/LF- oder Whitespace-Zeichen (z. B. durch Kopieren unter Windows) beim
-            # Dekodieren ignoriert werden, statt die Binaerdaten des Keystores zu zerstoeren.
+            # --ignore-garbage ensures that stray CR/LF or whitespace characters
+            # accidentally contained in the secret (e.g. copied on Windows) are
+            # ignored during decoding instead of corrupting the keystore's binary data.
             echo "$KEYSTORE_BASE64" | base64 --decode --ignore-garbage > "$KEYSTORE_PATH"
             echo "KEYSTORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
           else
-            echo "Kein KEYSTORE_BASE64 Secret gesetzt - Build wird unsigniert erstellt."
+            echo "No KEYSTORE_BASE64 secret set - building an unsigned APK."
           fi
 
       - name: Validate Keystore
@@ -55,10 +56,10 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           if ! keytool -list -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" -keystore "$KEYSTORE_FILE" > /dev/null 2>&1; then
-            echo "::error::Keystore konnte nicht gelesen werden. Pruefe die Secrets KEYSTORE_BASE64, KEYSTORE_PASSWORD und KEY_ALIAS (moeglicherweise falsches Passwort oder beschaedigtes Base64)."
+            echo "::error::Failed to read the keystore. Check the secrets KEYSTORE_BASE64, KEYSTORE_PASSWORD and KEY_ALIAS (possibly a wrong password or corrupted base64)."
             exit 1
           fi
-          echo "Keystore erfolgreich validiert."
+          echo "Keystore validated successfully."
 
       - name: Build Release APK
         env:
@@ -83,9 +84,9 @@ jobs:
           tag_name: build-${{ steps.apk.outputs.timestamp }}
           name: PassPorta ${{ steps.apk.outputs.timestamp }}
           body: |
-            Automatischer Build ausgeloest durch Commit ${{ github.sha }}.
+            Automatic build triggered by commit ${{ github.sha }}.
 
-            **Commit-Nachricht:** ${{ github.event.head_commit.message }}
+            **Commit message:** ${{ github.event.head_commit.message }}
           files: ${{ steps.apk.outputs.apk_name }}
           generate_release_notes: true
 
