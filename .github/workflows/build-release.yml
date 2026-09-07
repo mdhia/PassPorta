@@ -38,11 +38,27 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-            echo "KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+            # --ignore-garbage sorgt dafuer, dass versehentlich im Secret enthaltene
+            # CR/LF- oder Whitespace-Zeichen (z. B. durch Kopieren unter Windows) beim
+            # Dekodieren ignoriert werden, statt die Binaerdaten des Keystores zu zerstoeren.
+            echo "$KEYSTORE_BASE64" | base64 --decode --ignore-garbage > "$KEYSTORE_PATH"
+            echo "KEYSTORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
           else
             echo "Kein KEYSTORE_BASE64 Secret gesetzt - Build wird unsigniert erstellt."
           fi
+
+      - name: Validate Keystore
+        if: env.KEYSTORE_FILE != ''
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if ! keytool -list -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" -keystore "$KEYSTORE_FILE" > /dev/null 2>&1; then
+            echo "::error::Keystore konnte nicht gelesen werden. Pruefe die Secrets KEYSTORE_BASE64, KEYSTORE_PASSWORD und KEY_ALIAS (moeglicherweise falsches Passwort oder beschaedigtes Base64)."
+            exit 1
+          fi
+          echo "Keystore erfolgreich validiert."
 
       - name: Build Release APK
         env:
