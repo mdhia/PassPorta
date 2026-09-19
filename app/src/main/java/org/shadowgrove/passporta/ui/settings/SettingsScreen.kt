@@ -22,11 +22,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -89,6 +94,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
 
     // Not part of `settings`: the language is governed by AppCompatDelegate, not by our own
     // SharedPreferences store (see [AppLanguage]). A locale change recreates the activity almost
@@ -246,6 +252,26 @@ fun SettingsScreen(
             )
 
             HorizontalDivider()
+            SectionTitle(stringResource(R.string.settings_section_defaults))
+
+            OutlinedTextField(
+                value = settings.defaultOwnerName,
+                onValueChange = viewModel::setDefaultOwnerName,
+                label = { Text(stringResource(R.string.settings_default_owner_name)) },
+                supportingText = { Text(stringResource(R.string.settings_default_owner_name_hint)) },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+            )
+
+            DefaultFolderPicker(
+                selected = settings.defaultFolderName,
+                folders = folderSuggestions,
+                onSelect = viewModel::setDefaultFolderName,
+            )
+
+            HorizontalDivider()
             SectionTitle(stringResource(R.string.settings_section_backup))
 
             ListItem(
@@ -391,6 +417,53 @@ private fun AppThemeColor.label(): String = stringResource(
         AppThemeColor.SLATE -> R.string.settings_color_slate
     },
 )
+
+/**
+ * Picker for the default folder of newly created passes.
+ *
+ * A closed dropdown instead of a free-text field: the value only makes sense as one of the
+ * already existing folders (or the built-in default), so typos that would silently create a
+ * stray new folder are ruled out entirely.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DefaultFolderPicker(
+    selected: String,
+    folders: List<String>,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.settings_default_folder_name)) },
+            supportingText = { Text(stringResource(R.string.settings_default_folder_name_hint)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            folders.forEach { folder ->
+                DropdownMenuItem(
+                    text = { Text(folder) },
+                    onClick = {
+                        onSelect(folder)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
 
 /**
  * Label for a selectable display language.

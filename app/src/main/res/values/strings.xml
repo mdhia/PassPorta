@@ -126,6 +126,13 @@
     <string name="settings_section_behaviour">Verhalten</string>
     <string name="settings_section_about">Über PassPorta</string>
 
+    <!-- Standardwerte -->
+    <string name="settings_section_defaults">Standardwerte für neue Pässe</string>
+    <string name="settings_default_owner_name">Standard-Name des Besitzers</string>
+    <string name="settings_default_owner_name_hint">Wird beim Anlegen eines neuen Passes vorausgefüllt, sofern kein Name erkannt wurde.</string>
+    <string name="settings_default_folder_name">Standardordner</string>
+    <string name="settings_default_folder_name_hint">Wird beim Anlegen eines neuen Passes als Ordner vorausgefüllt.</string>
+
     <!-- Datensicherung -->
     <string name="settings_section_backup">Datensicherung</string>
     <string name="settings_backup_export">Daten exportieren</string>

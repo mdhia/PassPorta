@@ -7,6 +7,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
+import org.shadowgrove.passporta.data.local.entity.PassEntity
 
 /** Color mood of the frame surface. Passes always keep their own colors. */
 enum class AppThemeColor(val key: String) {
@@ -64,6 +65,12 @@ data class AppSettings(
 
     /** Also shows passes with a future start date in "All passes" and their original folder. */
     val showUpcomingInFolders: Boolean = false,
+
+    /** Pre-filled owner name for newly created passes. */
+    val defaultOwnerName: String = "",
+
+    /** Pre-filled folder for newly created passes. */
+    val defaultFolderName: String = PassEntity.DEFAULT_FOLDER,
 )
 
 /**
@@ -113,6 +120,12 @@ class SettingsStore(context: Context) {
     fun setShowUpcomingInFolders(value: Boolean) =
         preferences.edit { putBoolean(KEY_UPCOMING_IN_FOLDERS, value) }
 
+    fun setDefaultOwnerName(value: String) =
+        preferences.edit { putString(KEY_DEFAULT_OWNER_NAME, value) }
+
+    fun setDefaultFolderName(value: String) =
+        preferences.edit { putString(KEY_DEFAULT_FOLDER_NAME, value) }
+
     private fun read() = AppSettings(
         themeColor = AppThemeColor.fromKey(preferences.getString(KEY_COLOR, null)),
         themeMode = AppThemeMode.fromKey(preferences.getString(KEY_MODE, null)),
@@ -120,6 +133,9 @@ class SettingsStore(context: Context) {
         openBarcodeFullscreen = preferences.getBoolean(KEY_FULLSCREEN, false),
         showExpiredInFolders = preferences.getBoolean(KEY_EXPIRED_IN_FOLDERS, false),
         showUpcomingInFolders = preferences.getBoolean(KEY_UPCOMING_IN_FOLDERS, false),
+        defaultOwnerName = preferences.getString(KEY_DEFAULT_OWNER_NAME, null).orEmpty(),
+        defaultFolderName = preferences.getString(KEY_DEFAULT_FOLDER_NAME, null)
+            ?: PassEntity.DEFAULT_FOLDER,
     )
 
     /**
@@ -141,5 +157,7 @@ class SettingsStore(context: Context) {
         const val KEY_FULLSCREEN = "barcode_fullscreen"
         const val KEY_EXPIRED_IN_FOLDERS = "expired_in_folders"
         const val KEY_UPCOMING_IN_FOLDERS = "upcoming_in_folders"
+        const val KEY_DEFAULT_OWNER_NAME = "default_owner_name"
+        const val KEY_DEFAULT_FOLDER_NAME = "default_folder_name"
     }
 }

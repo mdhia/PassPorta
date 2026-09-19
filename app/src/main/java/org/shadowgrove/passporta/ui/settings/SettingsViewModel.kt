@@ -12,11 +12,14 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.shadowgrove.passporta.data.backup.BackupManager
 import org.shadowgrove.passporta.data.backup.BackupResult
+import org.shadowgrove.passporta.data.local.entity.PassEntity
+import org.shadowgrove.passporta.data.repository.PassRepository
 import org.shadowgrove.passporta.data.settings.AppSettings
 import org.shadowgrove.passporta.data.settings.AppThemeColor
 import org.shadowgrove.passporta.data.settings.AppThemeMode
@@ -58,6 +61,7 @@ enum class AppLanguage(val tag: String?) {
 class SettingsViewModel(
     private val store: SettingsStore,
     private val backupManager: BackupManager,
+    private val passRepository: PassRepository,
 ) : ViewModel() {
 
     val settings: StateFlow<AppSettings> = store.settings.stateIn(
@@ -65,6 +69,22 @@ class SettingsViewModel(
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
         initialValue = store.current,
     )
+
+    /**
+     * Existing folders for the default-folder picker.
+     *
+     * Always includes [PassEntity.DEFAULT_FOLDER], even before the first pass exists - the
+     * dropdown must never be empty.
+     */
+    val folderSuggestions: StateFlow<List<String>> = passRepository.observeFolders()
+        .map { folders ->
+            (listOf(PassEntity.DEFAULT_FOLDER) + folders.map { it.folderName }).distinct()
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+            initialValue = listOf(PassEntity.DEFAULT_FOLDER),
+        )
 
     /** One-off backup export/import messages (snackbar) - deliberately not part of [settings]. */
     private val backupResultChannel = Channel<BackupResult>(Channel.BUFFERED)
@@ -81,6 +101,10 @@ class SettingsViewModel(
     fun setShowExpiredInFolders(value: Boolean) = store.setShowExpiredInFolders(value)
 
     fun setShowUpcomingInFolders(value: Boolean) = store.setShowUpcomingInFolders(value)
+
+    fun setDefaultOwnerName(value: String) = store.setDefaultOwnerName(value)
+
+    fun setDefaultFolderName(value: String) = store.setDefaultFolderName(value)
 
     /**
      * Switches the app's display language.
@@ -115,7 +139,7 @@ class SettingsViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = passPortaApplication()
-                SettingsViewModel(app.settingsStore, app.backupManager)
+                SettingsViewModel(app.settingsStore, app.backupManager, app.passRepository)
             }
         }
     }

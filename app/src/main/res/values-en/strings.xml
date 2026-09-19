@@ -125,6 +125,13 @@
     <string name="settings_section_behaviour">Behavior</string>
     <string name="settings_section_about">About PassPorta</string>
 
+    <!-- Defaults -->
+    <string name="settings_section_defaults">Defaults for new passes</string>
+    <string name="settings_default_owner_name">Default owner name</string>
+    <string name="settings_default_owner_name_hint">Pre-filled when creating a new pass, unless a name was already recognized.</string>
+    <string name="settings_default_folder_name">Default folder</string>
+    <string name="settings_default_folder_name_hint">Pre-filled as the folder when creating a new pass.</string>
+
     <!-- Backup -->
     <string name="settings_section_backup">Backup</string>
     <string name="settings_backup_export">Export data</string>

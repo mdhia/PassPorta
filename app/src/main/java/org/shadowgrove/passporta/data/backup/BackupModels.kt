@@ -60,6 +60,8 @@ internal data class BackupSettings(
     val openBarcodeFullscreen: Boolean = false,
     val showExpiredInFolders: Boolean = false,
     val showUpcomingInFolders: Boolean = false,
+    val defaultOwnerName: String? = null,
+    val defaultFolderName: String? = null,
 )
 
 /**

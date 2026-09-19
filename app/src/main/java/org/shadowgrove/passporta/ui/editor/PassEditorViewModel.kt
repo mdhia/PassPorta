@@ -22,6 +22,7 @@ import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
 import org.shadowgrove.passporta.data.local.entity.PassSource
 import org.shadowgrove.passporta.data.repository.PassRepository
 import org.shadowgrove.passporta.data.scanner.PassScanner
+import org.shadowgrove.passporta.data.settings.SettingsStore
 import org.shadowgrove.passporta.ui.icons.PassIcon
 import org.shadowgrove.passporta.ui.icons.PassIconLibrary
 import org.shadowgrove.passporta.ui.passPortaApplication
@@ -120,6 +121,7 @@ class PassEditorViewModel(
     private val scanner: PassScanner,
     private val assetStore: PassAssetStore,
     private val documentSource: LocalDocumentSource,
+    settingsStore: SettingsStore,
     private val passId: String?,
     sourceUri: Uri?,
 ) : ViewModel() {
@@ -146,8 +148,26 @@ class PassEditorViewModel(
     private var latitude: Double? = null
     private var longitude: Double? = null
 
+    /**
+     * Defaults for a genuinely new pass - `null` when editing an existing one, so they're
+     * never applied on top of already-loaded values.
+     */
+    private val defaultOwnerName = settingsStore.current.defaultOwnerName
+    private val defaultFolderName = settingsStore.current.defaultFolderName
+
     private val state = MutableStateFlow(
-        PassEditorUiState(isScanning = sourceUri != null, isEditingExisting = passId != null),
+        PassEditorUiState(
+            isScanning = sourceUri != null,
+            isEditingExisting = passId != null,
+            // Only for brand-new passes: an edited or scanned pass either already has its own
+            // values or fills them in via [scan] right after.
+            ownerName = if (passId == null) defaultOwnerName else "",
+            folderName = if (passId == null) {
+                defaultFolderName
+            } else {
+                PassEntity.DEFAULT_FOLDER
+            },
+        ),
     )
     val uiState: StateFlow<PassEditorUiState> = state.asStateFlow()
 
@@ -235,7 +255,11 @@ class PassEditorViewModel(
             state.update { current ->
                 current.copy(
                     title = result.title.orEmpty(),
-                    ownerName = result.ownerName.orEmpty(),
+                    // A configured default takes priority over whatever the scan recognized -
+                    // if the user has set up their own name as the default, passes almost
+                    // always belong to them anyway, so a differently spelled or incomplete
+                    // scan result shouldn't override that deliberate choice.
+                    ownerName = defaultOwnerName.ifBlank { result.ownerName.orEmpty() },
                     identifier = result.identifier.orEmpty(),
                     barcodeData = result.barcodeData.orEmpty(),
                     barcodeType = result.barcodeType ?: current.barcodeType,
@@ -420,6 +444,7 @@ class PassEditorViewModel(
                         scanner = app.passScanner,
                         assetStore = app.passAssetStore,
                         documentSource = app.documentSource,
+                        settingsStore = app.settingsStore,
                         passId = passId,
                         sourceUri = sourceUri,
                     )

@@ -104,6 +104,8 @@ internal fun AppSettings.toBackupSettings(): BackupSettings = BackupSettings(
     openBarcodeFullscreen = openBarcodeFullscreen,
     showExpiredInFolders = showExpiredInFolders,
     showUpcomingInFolders = showUpcomingInFolders,
+    defaultOwnerName = defaultOwnerName,
+    defaultFolderName = defaultFolderName,
 )
 
 /** Applies a restored settings block through the store's normal setters. */
@@ -114,6 +116,8 @@ internal fun SettingsStore.restore(settings: BackupSettings) {
     setOpenBarcodeFullscreen(settings.openBarcodeFullscreen)
     setShowExpiredInFolders(settings.showExpiredInFolders)
     setShowUpcomingInFolders(settings.showUpcomingInFolders)
+    settings.defaultOwnerName?.let { setDefaultOwnerName(it) }
+    settings.defaultFolderName?.let { setDefaultFolderName(it) }
 }
 
 
