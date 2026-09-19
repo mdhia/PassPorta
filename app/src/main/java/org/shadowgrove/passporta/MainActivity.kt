@@ -1,11 +1,15 @@
 ﻿package org.shadowgrove.passporta
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.shadowgrove.passporta.ui.PassPortaApp
 import org.shadowgrove.passporta.ui.theme.PassPortaTheme
 
@@ -18,9 +22,18 @@ import org.shadowgrove.passporta.ui.theme.PassPortaTheme
  */
 class MainActivity : AppCompatActivity() {
 
+    /**
+     * PDF staged by [ImportActivity], waiting to be shown in the preview screen. Hoisted here
+     * (not in a ViewModel) because it comes from the *Intent*, not from app state, and must
+     * survive exactly one navigation.
+     */
+    private var pendingPdfUri by mutableStateOf<Uri?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        pendingPdfUri = intent.pdfPreviewUri()
 
         val settingsStore = (application as PassPortaApplication).settingsStore
 
@@ -33,9 +46,22 @@ class MainActivity : AppCompatActivity() {
                 themeMode = settings.themeMode,
                 dynamicColor = settings.useDynamicColor,
             ) {
-                PassPortaApp()
+                PassPortaApp(
+                    pendingPdfUri = pendingPdfUri,
+                    onPdfUriConsumed = { pendingPdfUri = null },
+                )
             }
         }
+    }
+
+    /**
+     * Called when the activity already exists and is reused (e.g. `FLAG_ACTIVITY_CLEAR_TOP`
+     * from [ImportActivity]) instead of being recreated.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.pdfPreviewUri()?.let { pendingPdfUri = it }
     }
 }
 

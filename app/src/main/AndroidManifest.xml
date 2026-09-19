@@ -122,7 +122,23 @@
                 <data android:host="pay.app.goo.gl" />
             </intent-filter>
 
-            <!-- Share menu: .pkpass file or a link with a Wallet JWT -->
+            <!--
+                PDFs (e.g. tickets or vouchers as e-mail attachments/downloads). Unlike .pkpass,
+                these are not imported immediately: PassPorta shows a preview first, with an
+                explicit action to import it into the wallet.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+
+            <!-- Share menu: .pkpass file, a PDF, or a link with a Wallet JWT -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
 
@@ -130,6 +146,7 @@
 
                 <data android:mimeType="application/vnd.apple.pkpass" />
                 <data android:mimeType="application/vnd.apple.pkpasses" />
+                <data android:mimeType="application/pdf" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>

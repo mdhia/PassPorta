@@ -46,6 +46,10 @@
     <!-- No plural: %1$d is a running number, not a quantity. -->
     <string name="document_page_of" tools:ignore="PluralsCandidate">Page %1$d of %2$d</string>
 
+    <!-- PDF preview (before import) -->
+    <string name="pdf_preview_title">PDF preview</string>
+    <string name="pdf_preview_import">Import into the wallet</string>
+
     <!-- Zoom mode (phase 4) -->
     <string name="zoom_hint">Tap to zoom in</string>
     <string name="zoom_close">Close</string>

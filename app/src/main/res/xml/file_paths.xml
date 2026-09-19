@@ -19,5 +19,14 @@
     <cache-path
         name="pass_camera"
         path="camera/" />
+
+    <!--
+        Staging area for PDFs handed in by other apps (ImportActivity -> MainActivity preview).
+        Cleared automatically after 24 hours; a copy is only kept permanently once the user
+        actually imports the file, at which point it moves to "originals" like any other source.
+    -->
+    <cache-path
+        name="pass_pdf_preview"
+        path="pdf_preview/" />
 </paths>
 

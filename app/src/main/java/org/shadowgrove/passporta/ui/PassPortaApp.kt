@@ -32,6 +32,7 @@ import org.shadowgrove.passporta.ui.editor.PassEditorScreen
 import org.shadowgrove.passporta.ui.editor.PassEditorViewModel
 import org.shadowgrove.passporta.ui.overview.PassOverviewScreen
 import org.shadowgrove.passporta.ui.overview.PassOverviewViewModel
+import org.shadowgrove.passporta.ui.pdfimport.PdfPreviewScreen
 import org.shadowgrove.passporta.ui.settings.SettingsScreen
 
 /** Starting destination: overview of all passes. */
@@ -45,6 +46,14 @@ data class PassDetailRoute(val passId: String)
 /** Display of a pass's preserved original document. */
 @Serializable
 data class PassDocumentRoute(val passId: String)
+
+/**
+ * Preview of a PDF handed to PassPorta by another app, before it is imported.
+ *
+ * [uri] is encoded for the same reason as [PassEditorRoute.sourceUri].
+ */
+@Serializable
+data class PdfPreviewRoute(val uri: String)
 
 /** App settings. */
 @Serializable
@@ -88,9 +97,22 @@ private val SCAN_MIME_TYPES = arrayOf("image/*", "application/pdf")
  * compiler.
  */
 @Composable
-fun PassPortaApp(modifier: Modifier = Modifier) {
+fun PassPortaApp(
+    modifier: Modifier = Modifier,
+    pendingPdfUri: Uri? = null,
+    onPdfUriConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // A PDF handed in from ImportActivity is a one-shot deep link: navigate to its preview once,
+    // then let the caller clear it so a later recomposition doesn't navigate again.
+    LaunchedEffect(pendingPdfUri) {
+        pendingPdfUri?.let { uri ->
+            navController.navigate(PdfPreviewRoute(uri = Uri.encode(uri.toString())))
+            onPdfUriConsumed()
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -202,6 +224,15 @@ fun PassPortaApp(modifier: Modifier = Modifier) {
             PassDocumentScreen(
                 passId = route.passId,
                 onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<PdfPreviewRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<PdfPreviewRoute>()
+            PdfPreviewScreen(
+                uri = Uri.parse(Uri.decode(route.uri)),
+                onBack = { navController.popBackStack() },
+                onImport = { navController.navigate(PassEditorRoute(sourceUri = route.uri)) },
             )
         }
 

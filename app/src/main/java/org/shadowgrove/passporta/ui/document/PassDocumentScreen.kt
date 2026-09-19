@@ -161,7 +161,7 @@ fun PassDocumentScreen(
  * switches between overview and detail crop.
  */
 @Composable
-private fun ZoomableImage(
+internal fun ZoomableImage(
     bitmap: Bitmap,
     contentDescription: String?,
     modifier: Modifier = Modifier,
@@ -279,7 +279,7 @@ private fun UnsupportedFormat(onOpen: () -> Unit) {
 }
 
 @Composable
-private fun PageNavigation(
+internal fun PageNavigation(
     pageIndex: Int,
     pageCount: Int,
     hasPrevious: Boolean,

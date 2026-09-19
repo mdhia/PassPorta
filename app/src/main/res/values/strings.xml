@@ -47,6 +47,10 @@
     <!-- Kein Plural: %1$d ist eine laufende Nummer, keine Menge. -->
     <string name="document_page_of" tools:ignore="PluralsCandidate">Seite %1$d von %2$d</string>
 
+    <!-- PDF-Vorschau (vor dem Import) -->
+    <string name="pdf_preview_title">PDF-Vorschau</string>
+    <string name="pdf_preview_import">In die Wallet importieren</string>
+
     <!-- Zoom-Modus (Phase 4) -->
     <string name="zoom_hint">Zum Vergrößern tippen</string>
     <string name="zoom_close">Schließen</string>
