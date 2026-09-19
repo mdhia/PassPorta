@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Numbers
@@ -52,6 +54,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,18 +62,22 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -398,6 +405,10 @@ private fun ColorSelector(
     selected: Int,
     onSelect: (Int) -> Unit,
 ) {
+    var showCustomPicker by remember { mutableStateOf(false) }
+    // Any color not among the fixed swatches is by definition a custom, freely picked one.
+    val isCustomSelected = selected !in PassColorSwatches
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.editor_field_color),
@@ -407,6 +418,14 @@ private fun ColorSelector(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            // First in the row: opens the free color picker. Placed before the fixed swatches
+            // so it's reachable without scrolling, regardless of how many swatches follow.
+            CustomColorSwatch(
+                color = if (isCustomSelected) selected else null,
+                selected = isCustomSelected,
+                onClick = { showCustomPicker = true },
+            )
+
             PassColorSwatches.forEach { color ->
                 val palette = PassPalette.from(color)
                 val selectedSwatch = color == selected
@@ -441,7 +460,168 @@ private fun ColorSelector(
             }
         }
     }
+
+    if (showCustomPicker) {
+        ColorPickerDialog(
+            initial = if (isCustomSelected) selected else PassColorSwatches.first(),
+            onConfirm = {
+                onSelect(it)
+                showCustomPicker = false
+            },
+            onDismiss = { showCustomPicker = false },
+        )
+    }
 }
+
+/**
+ * Round button opening the free color picker.
+ *
+ * Shows a rainbow ring as long as no custom color is active - a neutral placeholder would look
+ * like just another (unexplained) swatch, while the rainbow immediately signals "pick any
+ * color". Once a custom color is chosen, the button adopts it directly, exactly like the fixed
+ * swatches.
+ */
+@Composable
+private fun CustomColorSwatch(
+    color: Int?,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val rainbowBrush = remember {
+        Brush.sweepGradient(
+            listOf(
+                Color.Red,
+                Color.Yellow,
+                Color.Green,
+                Color.Cyan,
+                Color.Blue,
+                Color.Magenta,
+                Color.Red,
+            ),
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .size(ColorSwatchSize)
+            .clip(CircleShape)
+            .then(
+                if (color != null) {
+                    Modifier.background(Color(color))
+                } else {
+                    Modifier.background(rainbowBrush)
+                },
+            )
+            .border(
+                width = if (selected) 3.dp else 1.dp,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant
+                },
+                shape = CircleShape,
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected && color != null) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = stringResource(R.string.editor_color_selected),
+                tint = PassPalette.from(color).content,
+                modifier = Modifier.size(ColorSwatchCheckSize),
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Colorize,
+                contentDescription = stringResource(R.string.editor_color_custom),
+                tint = Color.White,
+                modifier = Modifier.size(ColorSwatchCheckSize),
+            )
+        }
+    }
+}
+
+/**
+ * Free color selection via RGB sliders.
+ */
+@Composable
+private fun ColorPickerDialog(
+    initial: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var red by remember { mutableFloatStateOf(((initial shr 16) and 0xFF).toFloat()) }
+    var green by remember { mutableFloatStateOf(((initial shr 8) and 0xFF).toFloat()) }
+    var blue by remember { mutableFloatStateOf((initial and 0xFF).toFloat()) }
+
+    val currentColor = remember(red, green, blue) {
+        (0xFF shl 24) or
+            (red.toInt() and 0xFF shl 16) or
+            (green.toInt() and 0xFF shl 8) or
+            (blue.toInt() and 0xFF)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.editor_color_picker_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ColorPreviewHeight)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(Color(currentColor))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium),
+                )
+
+                ColorSlider(
+                    label = stringResource(R.string.editor_color_red, red.toInt()),
+                    value = red,
+                    valueRange = 0f..255f,
+                    onValueChange = { red = it },
+                )
+                ColorSlider(
+                    label = stringResource(R.string.editor_color_green, green.toInt()),
+                    value = green,
+                    valueRange = 0f..255f,
+                    onValueChange = { green = it },
+                )
+                ColorSlider(
+                    label = stringResource(R.string.editor_color_blue, blue.toInt()),
+                    value = blue,
+                    valueRange = 0f..255f,
+                    onValueChange = { blue = it },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(currentColor) }) {
+                Text(stringResource(android.R.string.ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun ColorSlider(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit,
+) {
+    Column {
+        Text(text = label, style = MaterialTheme.typography.labelMedium)
+        Slider(value = value, onValueChange = onValueChange, valueRange = valueRange)
+    }
+}
+
 
 /** Recognized text lines as tappable suggestions for the title. */
 @Composable
@@ -824,6 +1004,11 @@ private fun IconPickerDialog(
 ) {
     var query by remember { mutableStateOf("") }
     val results = remember(query) { PassIconLibrary.search(query) }
+    // Only the unfiltered, full list separates curated from the library's remaining symbols -
+    // once the user searches, everything is ranked together by relevance (see
+    // `PassIconLibrary.search`), so a rigid split would no longer make sense there.
+    val showSections = query.isBlank()
+    val extraIcons = PassIconLibrary.extra
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -856,12 +1041,34 @@ private fun IconPickerDialog(
                         // it, the grid would blow up the screen.
                         modifier = Modifier.height(280.dp),
                     ) {
-                        items(items = results, key = { it.key }) { option ->
-                            IconOption(
-                                icon = option,
-                                selected = option.key == selected?.key,
-                                onClick = { onSelect(option) },
-                            )
+                        if (showSections) {
+                            items(items = PassIconLibrary.curated, key = { it.key }) { option ->
+                                IconOption(
+                                    icon = option,
+                                    selected = option.key == selected?.key,
+                                    onClick = { onSelect(option) },
+                                )
+                            }
+                            if (extraIcons.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    IconSectionDivider()
+                                }
+                                items(items = extraIcons, key = { it.key }) { option ->
+                                    IconOption(
+                                        icon = option,
+                                        selected = option.key == selected?.key,
+                                        onClick = { onSelect(option) },
+                                    )
+                                }
+                            }
+                        } else {
+                            items(items = results, key = { it.key }) { option ->
+                                IconOption(
+                                    icon = option,
+                                    selected = option.key == selected?.key,
+                                    onClick = { onSelect(option) },
+                                )
+                            }
                         }
                     }
                 }
@@ -873,6 +1080,24 @@ private fun IconPickerDialog(
             }
         },
     )
+}
+
+/** Separates the curated icons from the icon library's remaining symbols (see [IconPickerDialog]). */
+@Composable
+private fun IconSectionDivider() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(vertical = 4.dp),
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f))
+        Text(
+            text = stringResource(R.string.editor_icon_more),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        HorizontalDivider(modifier = Modifier.weight(1f))
+    }
 }
 
 @Composable
@@ -982,6 +1207,9 @@ private const val MAX_SUGGESTIONS = 12
 /** Dimensions of the color swatches in the card color selection. */
 private val ColorSwatchSize = 40.dp
 private val ColorSwatchCheckSize = 20.dp
+
+/** Preview bar height in the custom color picker dialog. */
+private val ColorPreviewHeight = 56.dp
 
 /** Fixed width for the "Start"/"End" labels, so both date buttons line up. */
 private val DateRowLabelWidth = 44.dp

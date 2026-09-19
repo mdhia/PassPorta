@@ -85,6 +85,11 @@
     <string name="editor_field_barcode_type">Barcode-Typ</string>
     <string name="editor_field_color">Kartenfarbe</string>
     <string name="editor_color_selected">Ausgewählte Farbe</string>
+    <string name="editor_color_custom">Eigene Farbe</string>
+    <string name="editor_color_picker_title">Farbe wählen</string>
+    <string name="editor_color_red">Rot (%1$d)</string>
+    <string name="editor_color_green">Grün (%1$d)</string>
+    <string name="editor_color_blue">Blau (%1$d)</string>
     <string name="editor_field_location">Ort</string>
     <string name="editor_field_date">Datum</string>
     <string name="editor_date_start">Start</string>
@@ -100,6 +105,7 @@
     <string name="editor_icon_title">Symbol wählen</string>
     <string name="editor_icon_search">Symbol suchen …</string>
     <string name="editor_icon_none">Kein Treffer für „%1$s“.</string>
+    <string name="editor_icon_more">Weitere Symbole</string>
     <string name="editor_folder_suggestions">Vorhandene Ordner</string>
 
     <!-- Suche in der Übersicht -->

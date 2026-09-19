@@ -84,6 +84,11 @@
     <string name="editor_field_barcode_type">Barcode type</string>
     <string name="editor_field_color">Card color</string>
     <string name="editor_color_selected">Selected color</string>
+    <string name="editor_color_custom">Custom color</string>
+    <string name="editor_color_picker_title">Choose color</string>
+    <string name="editor_color_red">Red (%1$d)</string>
+    <string name="editor_color_green">Green (%1$d)</string>
+    <string name="editor_color_blue">Blue (%1$d)</string>
     <string name="editor_field_location">Location</string>
     <string name="editor_field_date">Date</string>
     <string name="editor_date_start">Start</string>
@@ -99,6 +104,7 @@
     <string name="editor_icon_title">Choose symbol</string>
     <string name="editor_icon_search">Search symbol …</string>
     <string name="editor_icon_none">No match for “%1$s”.</string>
+    <string name="editor_icon_more">More symbols</string>
     <string name="editor_folder_suggestions">Existing folders</string>
 
     <!-- Search in the overview -->

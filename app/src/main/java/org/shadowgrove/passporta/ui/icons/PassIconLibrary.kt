@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.Tram
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.vector.ImageVector
+import dalvik.system.DexFile
 
 /**
  * A selectable symbol for a pass.
@@ -78,16 +79,18 @@ data class PassIcon(
 )
 
 /**
- * Curated selection from the Material Symbols.
+ * Curated selection from the Material Symbols, plus - appended - the rest of the icon library.
  *
- * Deliberately a fixed list instead of reflection over all roughly 3000 symbols: for one, R8
- * cannot shrink a library accessed via reflection, so the app would be noticeably larger. For
- * another, a search for "train" among thirty matching symbols is more useful than among three
- * thousand mostly unsuitable ones.
+ * The curated list ([curated]) exists because a search for "train" among thirty matching
+ * symbols is more useful than among the roughly 2000 mostly unsuitable ones the full library
+ * ships. The remaining symbols are still reachable (see [extra]), just ranked and listed after
+ * the curated ones instead of being hand-picked - it would be needlessly limiting to hide, say,
+ * a perfectly fitting "sailboat" symbol just because nobody added it to the curated list yet.
  */
 object PassIconLibrary {
 
-    val all: List<PassIcon> = listOf(
+    /** The curated, hand-picked selection - see the class doc above. */
+    val curated: List<PassIcon> = listOf(
         // --- Transport ---
         icon("train", "Zug", Icons.Filled.Train, "bahn", "zug", "db", "ice", "train", "railway", "rail"),
         icon("subway", "U-Bahn", Icons.Filled.DirectionsSubway, "ubahn", "u-bahn", "metro", "subway", "sbahn", "s-bahn"),
@@ -164,7 +167,128 @@ object PassIconLibrary {
         icon("star", "Favorit", Icons.Filled.Star, "favorit", "star", "stern", "premium", "gold"),
     )
 
-    private val byKey: Map<String, PassIcon> = all.associateBy { it.key }
+    /**
+     * All remaining symbols of the icon library that aren't already part of [curated].
+     *
+     * Loaded lazily and once via reflection over the compiled `Icons.Filled.*` extension
+     * properties: the library ships roughly 2000 symbols, far too many to list by hand. Symbols
+     * already present in [curated] are skipped so no icon appears twice; the display name is
+     * derived from the property name ("DirectionsBike" -> "Directions Bike").
+     *
+     * Best-effort: if reflection fails for any reason (e.g. a differing library version), this
+     * simply yields an empty list - [curated] alone remains fully functional.
+     */
+    val extra: List<PassIcon> by lazy { loadExtraIcons() }
+
+    /** [curated] followed by [extra] - see [extra] for how the latter is derived. */
+    val all: List<PassIcon> by lazy { curated + extra }
+
+    private val byKey: Map<String, PassIcon> by lazy { all.associateBy { it.key } }
+
+    private fun loadExtraIcons(): List<PassIcon> {
+        val curatedImages = curated.map { it.image }.toSet()
+        val curatedKeys = curated.map { it.key }.toSet()
+        val packagePrefix = "androidx.compose.material.icons.filled."
+        val results = mutableListOf<PassIcon>()
+
+        val classLoader = Icons.Filled.javaClass.classLoader ?: return emptyList()
+        val filledClass = Icons.Filled.javaClass
+
+        for (className in allLoadedClassNames(classLoader)) {
+            if (!className.startsWith(packagePrefix) || !className.endsWith("Kt")) continue
+
+            val iconName = className.removePrefix(packagePrefix).removeSuffix("Kt")
+            // Skip synthetic/nested classes; real icon names never contain '$'.
+            if (iconName.isEmpty() || iconName.contains('$')) continue
+
+            val key = "mi_" + iconName.toSnakeCase()
+            if (key in curatedKeys) continue
+
+            val vector = runCatching {
+                val clazz = Class.forName(className, false, classLoader)
+                val getter = clazz.getDeclaredMethod("get$iconName", filledClass)
+                getter.invoke(null, Icons.Filled) as? ImageVector
+            }.getOrNull() ?: continue
+
+            if (vector in curatedImages) continue
+
+            val label = iconName.toReadableLabel()
+            results += PassIcon(
+                key = key,
+                label = label,
+                keywords = listOf(label.lowercase(), iconName.lowercase()),
+                image = vector,
+            )
+        }
+
+        return results.sortedBy { it.label }
+    }
+
+    /**
+     * All class names contained in every dex file already loaded by [classLoader].
+     *
+     * Android apps use a `PathClassLoader`/`BaseDexClassLoader`, which internally holds a
+     * `pathList` field (type `DexPathList`) with a `dexElements` array; each element wraps one
+     * already-opened `dalvik.system.DexFile`. Walking this in-memory structure - instead of
+     * re-opening the APK by path via `DexFile(String)` - avoids the reliability issues of that
+     * approach (its underlying `protectionDomain.codeSource` is frequently unpopulated on
+     * Android, and re-parsing the APK from disk can fail for split/instant-run builds).
+     *
+     * Best-effort: the exact field names are an implementation detail of ART, not a stable API,
+     * so any failure here simply yields an empty list - [curated] alone remains fully
+     * functional.
+     */
+    private fun allLoadedClassNames(classLoader: ClassLoader): List<String> {
+        val results = mutableListOf<String>()
+        try {
+            val pathList = classLoader.javaClass
+                .getFieldRecursively("pathList")
+                .apply { isAccessible = true }
+                .get(classLoader) ?: return emptyList()
+            val dexElements = pathList.javaClass
+                .getFieldRecursively("dexElements")
+                .apply { isAccessible = true }
+                .get(pathList) as? Array<*> ?: return emptyList()
+
+            for (element in dexElements) {
+                element ?: continue
+                val dexFile = element.javaClass
+                    .getFieldRecursively("dexFile")
+                    .apply { isAccessible = true }
+                    .get(element) as? DexFile ?: continue
+
+                val entries = dexFile.entries()
+                while (entries.hasMoreElements()) {
+                    results += entries.nextElement()
+                }
+            }
+        } catch (_: Throwable) {
+            return emptyList()
+        }
+        return results
+    }
+
+    /** [Class.getDeclaredField], but also searching superclasses (needed for [ClassLoader] internals). */
+    private fun Class<*>.getFieldRecursively(name: String): java.lang.reflect.Field {
+        var current: Class<*>? = this
+        while (current != null) {
+            try {
+                return current.getDeclaredField(name)
+            } catch (_: NoSuchFieldException) {
+                current = current.superclass
+            }
+        }
+        throw NoSuchFieldException(name)
+    }
+
+    /** "DirectionsBike" -> "Directions Bike". */
+    private fun String.toReadableLabel(): String =
+        replace(Regex("(?<=[a-z0-9])(?=[A-Z])"), " ")
+            .replace(Regex("(?<=[A-Z])(?=[A-Z][a-z])"), " ")
+
+    /** "DirectionsBike" -> "directions_bike". */
+    private fun String.toSnakeCase(): String =
+        toReadableLabel().lowercase().replace(" ", "_")
 
     /** Resolves a stored key; unknown keys yield `null`. */
     fun byKey(key: String?): PassIcon? = key?.let { byKey[it] }
