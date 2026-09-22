@@ -82,6 +82,11 @@
     <string name="editor_field_barcode_data">Barcode content</string>
     <string name="editor_field_barcode_hint">Exactly the characters the scanner should read.</string>
     <string name="editor_field_barcode_type">Barcode type</string>
+    <string name="editor_barcodes_title">Barcodes</string>
+    <string name="editor_barcode_number">Barcode %1$d</string>
+    <string name="editor_barcode_remove">Remove barcode</string>
+    <string name="editor_barcode_add">Add barcode</string>
+    <string name="editor_field_barcode_alt_text">Caption (optional)</string>
     <string name="editor_field_color">Card color</string>
     <string name="editor_color_selected">Selected color</string>
     <string name="editor_color_custom">Custom color</string>

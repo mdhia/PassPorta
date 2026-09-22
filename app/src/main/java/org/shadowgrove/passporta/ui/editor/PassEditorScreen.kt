@@ -235,17 +235,14 @@ fun PassEditorScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
-                value = state.barcodeData,
-                onValueChange = viewModel::updateBarcodeData,
-                label = { Text(stringResource(R.string.editor_field_barcode_data)) },
-                supportingText = { Text(stringResource(R.string.editor_field_barcode_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
 
-            BarcodeTypeSelector(
-                selected = state.barcodeType,
-                onSelect = viewModel::updateBarcodeType,
+            BarcodeEditor(
+                barcodes = state.barcodes,
+                onDataChange = viewModel::updateBarcodeData,
+                onTypeChange = viewModel::updateBarcodeType,
+                onAltTextChange = viewModel::updateBarcodeAltText,
+                onRemove = viewModel::removeBarcode,
+                onAdd = viewModel::addBarcode,
             )
 
             DateRangeSelector(
@@ -340,24 +337,134 @@ private fun ScanningIndicator(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * All barcodes of a pass, each editable in a compact card with type and value side by side.
+ */
+@Composable
+private fun BarcodeEditor(
+    barcodes: List<EditableBarcode>,
+    onDataChange: (String, String) -> Unit,
+    onTypeChange: (String, BarcodeType) -> Unit,
+    onAltTextChange: (String, String) -> Unit,
+    onRemove: (String) -> Unit,
+    onAdd: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = stringResource(R.string.editor_barcodes_title),
+            style = MaterialTheme.typography.labelLarge,
+        )
+
+        barcodes.forEachIndexed { index, barcode ->
+            BarcodeRow(
+                index = index,
+                barcode = barcode,
+                showRemove = barcodes.size > 1,
+                onDataChange = { onDataChange(barcode.id, it) },
+                onTypeChange = { onTypeChange(barcode.id, it) },
+                onAltTextChange = { onAltTextChange(barcode.id, it) },
+                onRemove = { onRemove(barcode.id) },
+            )
+        }
+
+        TextButton(onClick = onAdd) {
+            Icon(imageVector = Icons.Default.Add, contentDescription = null)
+            Text(
+                text = stringResource(R.string.editor_barcode_add),
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+    }
+}
+
+/** One barcode: number/remove header, then type and value in the same row, plus a caption. */
+@Composable
+private fun BarcodeRow(
+    index: Int,
+    barcode: EditableBarcode,
+    showRemove: Boolean,
+    onDataChange: (String) -> Unit,
+    onTypeChange: (BarcodeType) -> Unit,
+    onAltTextChange: (String) -> Unit,
+    onRemove: () -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
+            .padding(12.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.editor_barcode_number, index + 1),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f),
+            )
+            if (showRemove) {
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.editor_barcode_remove),
+                    )
+                }
+            }
+        }
+
+        // Type and value share a row: together they fully describe the barcode, and this way
+        // both fit above the fold even with several barcodes.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            OutlinedTextField(
+                value = barcode.data,
+                onValueChange = onDataChange,
+                label = { Text(stringResource(R.string.editor_field_barcode_data)) },
+                singleLine = true,
+                modifier = Modifier.weight(1.4f),
+            )
+            CompactBarcodeTypeSelector(
+                selected = barcode.type,
+                onSelect = onTypeChange,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        OutlinedTextField(
+            value = barcode.altText,
+            onValueChange = onAltTextChange,
+            label = { Text(stringResource(R.string.editor_field_barcode_alt_text)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Narrower variant of the barcode type dropdown, meant to sit next to the value field. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BarcodeTypeSelector(
+private fun CompactBarcodeTypeSelector(
     selected: BarcodeType,
     onSelect: (BarcodeType) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it },
+        modifier = modifier,
     ) {
         OutlinedTextField(
             value = selected.storageKey,
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.editor_field_barcode_type)) },
-            leadingIcon = { BarcodeTypeIcon(selected) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)

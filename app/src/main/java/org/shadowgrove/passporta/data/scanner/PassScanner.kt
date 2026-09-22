@@ -61,7 +61,8 @@ class PassScanner(
         }
 
         try {
-            val hit = findBarcode(pages)
+            val hits = findBarcodes(pages)
+            val hit = hits.firstOrNull()
             val page = hit?.page ?: pages.first()
             val lines = recognizeOriented(page, preferred = hit?.rotationDegrees ?: UPRIGHT)
 
@@ -71,6 +72,9 @@ class PassScanner(
                     barcodeData = hit?.value,
                     barcodeType = hit?.type,
                     barcodeEcc = hit?.errorCorrection,
+                    barcodes = hits
+                        .map { ScannedBarcode(data = it.value, type = it.type, ecc = it.errorCorrection) }
+                        .distinct(),
                 )
         } catch (error: Exception) {
             Log.w(TAG, "Analysis failed", error)
@@ -98,10 +102,12 @@ class PassScanner(
     private class CropRegion(val fraction: Float, val centerX: Float, val centerY: Float)
 
     /**
-     * Searches for the first readable barcode in several stages.
+     * Searches for all readable barcodes in several stages.
      *
      * The order is sorted by hit probability and cost; later stages only run if nothing was
-     * found before:
+     * found before. A single stage may already yield several distinct barcodes at once (e.g. a
+     * pass with multiple codes on one page); in that case the remaining, more expensive stages
+     * are skipped entirely.
      *
      * 1. All pages upright - the normal case for PDFs and screenshots.
      * 2. The common misrotations of the first page. This mostly helps 1D codes; ML Kit
@@ -111,22 +117,23 @@ class PassScanner(
      * 4. Grayscale with boosted contrast - against shadows and reflections.
      * 5. ZXing as a second opinion; the two libraries fail on different images.
      */
-    private suspend fun findBarcode(pages: List<Bitmap>): BarcodeHit? {
-        pages.forEach { page ->
-            analyse(page, page, UPRIGHT)?.let { return it }
-        }
+    private suspend fun findBarcodes(pages: List<Bitmap>): List<BarcodeHit> {
+        val fromPages = pages.flatMap { page -> analyse(page, page, UPRIGHT) }
+        if (fromPages.isNotEmpty()) return dedupeHits(fromPages)
 
         val first = pages.first()
 
         FALLBACK_ROTATIONS.forEach { rotation ->
-            analyse(first, first, rotation)?.let { return it }
+            val hits = analyse(first, first, rotation)
+            if (hits.isNotEmpty()) return dedupeHits(hits)
         }
 
         CROP_REGIONS.forEach { region ->
             val crop = Bitmaps.crop(first, region.fraction, region.centerX, region.centerY)
                 ?: return@forEach
             try {
-                analyse(crop, first, UPRIGHT)?.let { return it }
+                val hits = analyse(crop, first, UPRIGHT)
+                if (hits.isNotEmpty()) return dedupeHits(hits)
             } finally {
                 crop.recycle()
             }
@@ -134,32 +141,43 @@ class PassScanner(
 
         Bitmaps.highContrastGray(first)?.let { enhanced ->
             try {
-                analyse(enhanced, first, UPRIGHT)?.let { return it }
+                val hits = analyse(enhanced, first, UPRIGHT)
+                if (hits.isNotEmpty()) return dedupeHits(hits)
             } finally {
                 enhanced.recycle()
             }
         }
 
-        return decodeWithZxing(first)
+        return decodeWithZxing(first)?.let { listOf(it) } ?: emptyList()
     }
 
-    /** An ML Kit pass over [candidate]; a hit is attributed to [page]. */
-    private suspend fun analyse(candidate: Bitmap, page: Bitmap, rotationDegrees: Int): BarcodeHit? {
+    /** Collapses barcodes with identical payload and format across pages/regions. */
+    private fun dedupeHits(hits: List<BarcodeHit>): List<BarcodeHit> {
+        val seen = mutableSetOf<Pair<String, BarcodeType>>()
+        return hits.filter { seen.add(it.value to it.type) }
+    }
+
+    /** An ML Kit pass over [candidate]; every hit is attributed to [page]. */
+    private suspend fun analyse(candidate: Bitmap, page: Bitmap, rotationDegrees: Int): List<BarcodeHit> {
         val found = barcodeScanner
             .process(InputImage.fromBitmap(candidate, rotationDegrees))
             .await()
-            .firstNotNullOfOrNull { barcode -> barcode.value()?.let { barcode.format to it } }
-            ?: return null
+            .mapNotNull { barcode -> barcode.value()?.let { barcode.format to it } }
+        if (found.isEmpty()) return emptyList()
 
-        return BarcodeHit(
-            page = page,
-            value = found.second,
-            type = toBarcodeType(found.first),
-            rotationDegrees = rotationDegrees,
-            // The crop in which the code was found is also the best template for ZXing - and
-            // it only lives until the end of this call.
-            errorCorrection = BarcodeParameterReader.read(candidate)?.errorCorrection,
-        )
+        // The crop in which the codes were found is also the best template for ZXing's
+        // error-correction reader - and it only lives until the end of this call.
+        val errorCorrection = BarcodeParameterReader.read(candidate)?.errorCorrection
+
+        return found.map { (format, value) ->
+            BarcodeHit(
+                page = page,
+                value = value,
+                type = toBarcodeType(format),
+                rotationDegrees = rotationDegrees,
+                errorCorrection = errorCorrection,
+            )
+        }
     }
 
     /** Last attempt with ZXing, on the full page and on its center. */

@@ -7,6 +7,7 @@ import org.shadowgrove.passporta.data.importer.PassAssetStore
 import org.shadowgrove.passporta.data.local.entity.BarcodeType
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
+import org.shadowgrove.passporta.data.local.entity.PassBarcodeEntity
 import org.shadowgrove.passporta.data.local.entity.isExpired
 import org.shadowgrove.passporta.data.local.entity.isUpcoming
 import org.shadowgrove.passporta.data.local.model.PassWithFields
@@ -56,17 +57,29 @@ data class PassFieldUi(
  * Keeps the UI free of Room entities and resolves logo path and color roles exactly once.
  */
 @Immutable
+data class BarcodeUi(
+    val data: String,
+    val type: BarcodeType,
+    val altText: String? = null,
+    val errorCorrection: String? = null,
+    val characterSet: String? = null,
+    val position: Int = 0,
+)
+
+@Immutable
 data class PassUi(
     val id: String,
     val folderName: String,
     val title: String,
-    val subtitle: String?,    val ownerName: String,
+    val subtitle: String?,
+    val ownerName: String,
     val identifier: String?,
     val barcodeData: String,
     val barcodeType: BarcodeType,
     val barcodeAltText: String?,
     val barcodeEcc: String?,
     val barcodeEncoding: String?,
+    val barcodes: List<BarcodeUi> = emptyList(),
     val logoFile: File?,
 
     /** Chosen symbol from the icon library; applies when no logo is set. */
@@ -105,6 +118,19 @@ data class PassUi(
 
     val hasSubtitle: Boolean = !subtitle.isNullOrBlank()
 
+    /** The first barcode is the primary value for compatibility with the legacy model. */
+    val primaryBarcode: BarcodeUi?
+        get() = barcodes.firstOrNull()
+            ?: barcodeData.takeIf { it.isNotBlank() }?.let {
+                BarcodeUi(
+                    data = it,
+                    type = barcodeType,
+                    altText = barcodeAltText,
+                    errorCorrection = barcodeEcc,
+                    characterSet = barcodeEncoding,
+                )
+            }
+
     /** True if a location can be displayed or opened in a maps app. */
     val hasLocation: Boolean =
         !location.isNullOrBlank() || (locationLatitude != null && locationLongitude != null)
@@ -114,6 +140,7 @@ fun PassEntity.toUi(
     assetStore: PassAssetStore,
     fields: List<PassFieldEntity> = emptyList(),
     now: Long = System.currentTimeMillis(),
+    barcodes: List<PassBarcodeEntity> = emptyList(),
 ): PassUi = PassUi(
     id = id,
     folderName = folderName,
@@ -126,6 +153,16 @@ fun PassEntity.toUi(
     barcodeAltText = barcodeAltText,
     barcodeEcc = barcodeEcc,
     barcodeEncoding = barcodeEncoding,
+    barcodes = barcodes.map { barcode ->
+        BarcodeUi(
+            data = barcode.barcodeData,
+            type = barcode.barcodeType,
+            altText = barcode.barcodeAltText,
+            errorCorrection = barcode.barcodeEcc,
+            characterSet = barcode.barcodeEncoding,
+            position = barcode.position,
+        )
+    },
     logoFile = assetStore.resolve(logoPath),
     icon = PassIconLibrary.byKey(iconKey),
     heroImageFile = assetStore.resolve(heroImagePath),
@@ -148,7 +185,7 @@ fun PassEntity.toUi(
 fun PassWithFields.toUi(
     assetStore: PassAssetStore,
     now: Long = System.currentTimeMillis(),
-): PassUi = pass.toUi(assetStore, orderedFields, now)
+): PassUi = pass.toUi(assetStore, orderedFields, now, orderedBarcodes)
 
 /** Up to two initial letters, e.g. "Beispiel Club" -> "BC". */
 private fun String.toInitials(): String = trim()
@@ -158,5 +195,4 @@ private fun String.toInitials(): String = trim()
     .map { it.first().uppercaseChar() }
     .joinToString(separator = "")
     .ifEmpty { "?" }
-
 

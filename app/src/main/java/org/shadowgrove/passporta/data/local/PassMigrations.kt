@@ -84,8 +84,68 @@ internal object PassMigrations {
         }
     }
 
+    /**
+     * Version 6 stores every barcode as an ordered child row while retaining the legacy
+     * barcode columns as the primary/first barcode for backwards compatibility.
+     */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `pass_barcodes` (
+                    `id` TEXT NOT NULL,
+                    `pass_id` TEXT NOT NULL,
+                    `barcode_data` TEXT NOT NULL,
+                    `barcode_type` TEXT NOT NULL,
+                    `barcode_alt_text` TEXT,
+                    `barcode_ecc` TEXT,
+                    `barcode_encoding` TEXT,
+                    `position` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`),
+                    FOREIGN KEY(`pass_id`) REFERENCES `passes`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_pass_barcodes_pass_id` " +
+                    "ON `pass_barcodes` (`pass_id`)",
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_pass_barcodes_pass_id_position` " +
+                    "ON `pass_barcodes` (`pass_id`, `position`)",
+            )
+            db.execSQL(
+                """
+                INSERT INTO `pass_barcodes` (
+                    `id`, `pass_id`, `barcode_data`, `barcode_type`,
+                    `barcode_alt_text`, `barcode_ecc`, `barcode_encoding`, `position`
+                )
+                SELECT
+                    substr(lower(hex(randomblob(16))), 1, 8) || '-' ||
+                        lower(hex(randomblob(4))) || '-' ||
+                        '4' || substr(lower(hex(randomblob(16))), 1, 3) || '-' ||
+                        substr('89ab', abs(random()) % 4 + 1, 1) ||
+                        substr(lower(hex(randomblob(16))), 1, 3) || '-' ||
+                        lower(hex(randomblob(12))),
+                    `id`, `barcode_data`, `barcode_type`,
+                    `barcode_alt_text`, `barcode_ecc`, `barcode_encoding`, 0
+                FROM `passes`
+                WHERE `barcode_data` IS NOT NULL AND trim(`barcode_data`) <> ''
+                """.trimIndent(),
+            )
+        }
+    }
+
     /** All migrations in ascending order. */
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+    val ALL: Array<Migration> = arrayOf(
+        MIGRATION_1_2,
+        MIGRATION_2_3,
+        MIGRATION_3_4,
+        MIGRATION_4_5,
+        MIGRATION_5_6,
+    )
 
     /** New, entirely nullable columns - therefore without `DEFAULT` and without data migration. */
     private val NEW_PASS_COLUMNS = listOf(

@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import org.shadowgrove.passporta.data.local.dao.PassDao
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
+import org.shadowgrove.passporta.data.local.entity.PassBarcodeEntity
 
 /**
  * Local, purely offline database of PassPorta.
@@ -16,8 +17,8 @@ import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
  * migrations are versionable and testable.
  */
 @Database(
-    entities = [PassEntity::class, PassFieldEntity::class],
-    version = 5,
+    entities = [PassEntity::class, PassFieldEntity::class, PassBarcodeEntity::class],
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(PassConverters::class)

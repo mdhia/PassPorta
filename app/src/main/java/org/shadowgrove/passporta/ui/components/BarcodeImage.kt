@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.shadowgrove.passporta.R
 import org.shadowgrove.passporta.data.local.entity.BarcodeType
+import org.shadowgrove.passporta.ui.model.BarcodeUi
 import org.shadowgrove.passporta.ui.model.PassUi
 import org.shadowgrove.passporta.util.BarcodeRenderer
 
@@ -142,6 +143,25 @@ fun BarcodeImage(
         modifier = modifier,
         errorCorrection = pass.barcodeEcc,
         characterSet = pass.barcodeEncoding,
+    )
+}
+
+/** Shorthand that takes all encoding parameters directly from a single barcode of a pass. */
+@Composable
+fun BarcodeImage(
+    barcode: BarcodeUi,
+    width: Dp,
+    accessibilityLabel: String,
+    modifier: Modifier = Modifier,
+) {
+    BarcodeImage(
+        data = barcode.data,
+        type = barcode.type,
+        width = width,
+        accessibilityLabel = accessibilityLabel,
+        modifier = modifier,
+        errorCorrection = barcode.errorCorrection,
+        characterSet = barcode.characterSet,
     )
 }
 

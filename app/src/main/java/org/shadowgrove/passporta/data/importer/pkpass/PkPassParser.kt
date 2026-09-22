@@ -1,6 +1,7 @@
 package org.shadowgrove.passporta.data.importer.pkpass
 
 import kotlinx.serialization.json.JsonElement
+import org.shadowgrove.passporta.data.importer.BarcodeDraft
 import org.shadowgrove.passporta.data.importer.ImportFailure
 import org.shadowgrove.passporta.data.importer.ImportJson
 import org.shadowgrove.passporta.data.importer.PassDraft
@@ -57,6 +58,7 @@ class PkPassParser {
         val identifier = mapper.identifier()
         val subtitle = mapper.subtitle()
         val location = pass.locations.firstOrNull()
+        val barcodeDrafts = allBarcodes(pass, mapper)
 
         val draft = PassDraft(
             folderName = mapper.folderName(),
@@ -80,8 +82,29 @@ class PkPassParser {
             locationLongitude = location?.longitude,
             source = PassSource.PKPASS,
             externalId = pass.serialNumber?.takeIf { it.isNotBlank() },
+            barcodes = barcodeDrafts,
         )
         return PkPassImport(draft = draft, integrityVerified = archive.verifyIntegrity())
+    }
+
+    /**
+     * All barcodes of the pass (from `barcodes`, falling back to the legacy `barcode` field),
+     * with blank messages dropped and exact duplicates (same data + format) collapsed to a
+     * single entry so the same code isn't shown/swiped to twice.
+     */
+    private fun allBarcodes(pass: PkPassJson, mapper: PkPassMapper): List<BarcodeDraft> {
+        val source = pass.barcodes.ifEmpty { listOfNotNull(pass.barcode) }
+        return source
+            .filter { !it.message.isNullOrBlank() }
+            .map { pk ->
+                BarcodeDraft(
+                    data = pk.message.orEmpty(),
+                    type = BarcodeType.fromKey(pk.format),
+                    altText = mapper.translate(pk.altText),
+                    encoding = pk.messageEncoding?.trim()?.takeIf { it.isNotEmpty() },
+                )
+            }
+            .distinct()
     }
 }
 

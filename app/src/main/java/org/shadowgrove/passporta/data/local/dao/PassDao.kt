@@ -9,6 +9,7 @@ import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
+import org.shadowgrove.passporta.data.local.entity.PassBarcodeEntity
 import org.shadowgrove.passporta.data.local.model.FolderSummary
 import org.shadowgrove.passporta.data.local.model.PassWithFields
 
@@ -67,7 +68,16 @@ interface PassDao {
     suspend fun findById(id: String): PassEntity?
 
     /** Used for duplicate detection during import (phase 2 / phase 5). */
-    @Query("SELECT * FROM passes WHERE barcode_data = :barcodeData LIMIT 1")
+    @Query(
+        """
+        SELECT * FROM passes
+        WHERE barcode_data = :barcodeData
+           OR id IN (
+               SELECT pass_id FROM pass_barcodes WHERE barcode_data = :barcodeData
+           )
+        LIMIT 1
+        """,
+    )
     suspend fun findByBarcodeData(barcodeData: String): PassEntity?
 
     @Query("SELECT COUNT(*) FROM passes")
@@ -138,6 +148,21 @@ interface PassDao {
         deleteFields(passId)
         if (fields.isNotEmpty()) insertFields(fields)
     }
-}
 
+    @Query("SELECT * FROM pass_barcodes WHERE pass_id = :passId ORDER BY position ASC")
+    suspend fun barcodesOf(passId: String): List<PassBarcodeEntity>
+
+    @Query("DELETE FROM pass_barcodes WHERE pass_id = :passId")
+    suspend fun deleteBarcodes(passId: String)
+
+    @Insert
+    suspend fun insertBarcodes(barcodes: List<PassBarcodeEntity>)
+
+    /** Replaces all barcodes of a pass in one transaction. */
+    @Transaction
+    suspend fun replaceBarcodes(passId: String, barcodes: List<PassBarcodeEntity>) {
+        deleteBarcodes(passId)
+        if (barcodes.isNotEmpty()) insertBarcodes(barcodes)
+    }
+}
 

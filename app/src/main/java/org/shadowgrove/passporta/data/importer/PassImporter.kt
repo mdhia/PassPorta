@@ -15,6 +15,7 @@ import org.shadowgrove.passporta.data.importer.pkpass.PkPassParser
 import org.shadowgrove.passporta.data.importer.wallet.WalletLinkParser
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
+import org.shadowgrove.passporta.data.local.entity.PassBarcodeEntity
 import org.shadowgrove.passporta.data.repository.PassRepository
 import org.shadowgrove.passporta.util.Bitmaps
 import java.io.ByteArrayInputStream
@@ -189,6 +190,19 @@ class PassImporter(
                         position = index,
                     )
                 },
+                barcodes = draft.barcodes
+                    .distinct()
+                    .mapIndexed { index, barcode ->
+                        PassBarcodeEntity(
+                            passId = id,
+                            barcodeData = barcode.data,
+                            barcodeType = barcode.type,
+                            barcodeAltText = barcode.altText,
+                            barcodeEcc = barcode.ecc,
+                            barcodeEncoding = barcode.encoding,
+                            position = index,
+                        )
+                    },
                 now = now,
             )
             ids += id

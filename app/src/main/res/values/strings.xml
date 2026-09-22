@@ -83,6 +83,11 @@
     <string name="editor_field_barcode_data">Barcode-Inhalt</string>
     <string name="editor_field_barcode_hint">Genau die Zeichen, die der Scanner lesen soll.</string>
     <string name="editor_field_barcode_type">Barcode-Typ</string>
+    <string name="editor_barcodes_title">Barcodes</string>
+    <string name="editor_barcode_number">Barcode %1$d</string>
+    <string name="editor_barcode_remove">Barcode entfernen</string>
+    <string name="editor_barcode_add">Barcode hinzufügen</string>
+    <string name="editor_field_barcode_alt_text">Bildunterschrift (optional)</string>
     <string name="editor_field_color">Kartenfarbe</string>
     <string name="editor_color_selected">Ausgewählte Farbe</string>
     <string name="editor_color_custom">Eigene Farbe</string>

@@ -21,6 +21,20 @@ data class ScannedField(
     val value: String,
 )
 
+/** A single barcode found on the scanned source. */
+data class ScannedBarcode(
+    val data: String,
+    val type: BarcodeType,
+    val ecc: String? = null,
+) {
+
+    /** Same visual code - decides deduplication regardless of minor format quirks. */
+    override fun equals(other: Any?): Boolean =
+        other is ScannedBarcode && data == other.data && type == other.type
+
+    override fun hashCode(): Int = 31 * data.hashCode() + type.hashCode()
+}
+
 /** Pre-filled form values derived from an image or PDF. */
 data class ScannedPass(
     val barcodeData: String? = null,
@@ -32,6 +46,9 @@ data class ScannedPass(
      * Carried over so the redrawn barcode gets the same module grid as the scanned original.
      */
     val barcodeEcc: String? = null,
+
+    /** All barcodes found on the source, deduplicated. Includes the primary code above. */
+    val barcodes: List<ScannedBarcode> = emptyList(),
 
     val title: String? = null,
     val ownerName: String? = null,

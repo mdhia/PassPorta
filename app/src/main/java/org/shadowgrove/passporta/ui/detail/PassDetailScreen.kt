@@ -9,10 +9,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -115,6 +119,7 @@ fun PassDetailScreen(
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showZoom by remember { mutableStateOf(false) }
+    var selectedBarcodeIndex by remember(passId) { mutableStateOf(0) }
 
     // Setting "open barcode immediately": applies once, as soon as the pass is loaded.
     // Deliberately tied to the pass id and not to `Unit` - otherwise the effect would stay
@@ -183,7 +188,10 @@ fun PassDetailScreen(
         if (pass != null) {
             PassDetailContent(
                 pass = pass,
-                onBarcodeClick = { showZoom = true },
+                onBarcodeClick = { index ->
+                    selectedBarcodeIndex = index
+                    showZoom = true
+                },
                 onOpenOriginal = { onOpenOriginal(pass.id) },
                 modifier = Modifier
                     .fillMaxSize()
@@ -193,7 +201,11 @@ fun PassDetailScreen(
     }
 
     if (showZoom && pass != null) {
-        BarcodeZoomDialog(pass = pass, onDismiss = { showZoom = false })
+        BarcodeZoomDialog(
+            pass = pass,
+            initialBarcodeIndex = selectedBarcodeIndex,
+            onDismiss = { showZoom = false },
+        )
     }
 
     if (showDeleteDialog && pass != null) {
@@ -211,7 +223,7 @@ fun PassDetailScreen(
 @Composable
 private fun PassDetailContent(
     pass: PassUi,
-    onBarcodeClick: () -> Unit,
+    onBarcodeClick: (Int) -> Unit,
     onOpenOriginal: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -263,7 +275,7 @@ private fun PassDetailContent(
 
         BarcodePanel(
             pass = pass,
-            onClick = onBarcodeClick,
+            onClick = { index -> onBarcodeClick(index) },
             modifier = Modifier.padding(top = 28.dp),
         )
 
@@ -421,55 +433,110 @@ private fun UpcomingBadge(pass: PassUi, modifier: Modifier = Modifier) {
  * Barcode on a white background.
  *
  * Scanners expect dark modules on a light background—so the spot color must not
- * show through here. Tapping opens zoom mode at full brightness.
+ * show through here. Tapping opens zoom mode at full brightness. With several barcodes, the
+ * user can swipe between them; small dots below show the current position.
  */
 @Composable
 private fun BarcodePanel(
     pass: PassUi,
-    onClick: () -> Unit,
+    onClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val barcodes = pass.barcodes.ifEmpty { listOfNotNull(pass.primaryBarcode) }
+    if (barcodes.isEmpty()) return
+
+    val pagerState = rememberPagerState(pageCount = { barcodes.size })
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color.White)
-            .clickable(onClick = onClick),
+            .background(Color.White),
     ) {
-        val maxAllowed = when (pass.barcodeType) {
-            BarcodeType.QR, BarcodeType.AZTEC -> MaxBarcodeWidth2D
-            BarcodeType.PDF417, BarcodeType.CODE128, BarcodeType.ITF -> MaxBarcodeWidth1D
+        val maxAllowed = { type: BarcodeType ->
+            when (type) {
+                BarcodeType.QR, BarcodeType.AZTEC -> MaxBarcodeWidth2D
+                BarcodeType.PDF417, BarcodeType.CODE128, BarcodeType.ITF -> MaxBarcodeWidth1D
+            }
         }
-        val barcodeWidth = minOf(maxWidth - 32.dp, maxAllowed)
+        // Captured here: inside the pager's content lambda, `maxWidth` would no longer resolve
+        // to this `BoxWithConstraints` scope's implicit receiver.
+        val availableWidth = maxWidth
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            BarcodeImage(
-                pass = pass,
-                width = barcodeWidth,
-                accessibilityLabel = stringResource(R.string.detail_barcode, pass.title),
-            )
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth(),
+            ) { page ->
+                val barcode = barcodes[page]
+                val barcodeWidth = minOf(availableWidth - 32.dp, maxAllowed(barcode.type))
 
-            val caption = pass.barcodeAltText ?: pass.identifier
-            if (caption != null) {
-                Text(
-                    text = caption,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center,
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onClick(page) }
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    BarcodeImage(
+                        barcode = barcode,
+                        width = barcodeWidth,
+                        accessibilityLabel = stringResource(R.string.detail_barcode, pass.title),
+                    )
+
+                    val caption = barcode.altText ?: pass.identifier
+                    if (caption != null) {
+                        Text(
+                            text = caption,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.Black,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(R.string.zoom_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
 
-            Text(
-                text = stringResource(R.string.zoom_hint),
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray,
-                textAlign = TextAlign.Center,
+            if (barcodes.size > 1) {
+                BarcodeDots(
+                    pageCount = barcodes.size,
+                    currentPage = pagerState.currentPage,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Small dots below the barcode panel, indicating which of several barcodes is shown. */
+@Composable
+private fun BarcodeDots(
+    pageCount: Int,
+    currentPage: Int,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier,
+    ) {
+        repeat(pageCount) { index ->
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(
+                        if (index == currentPage) Color.Black else Color.Black.copy(alpha = 0.25f),
+                    ),
             )
         }
     }

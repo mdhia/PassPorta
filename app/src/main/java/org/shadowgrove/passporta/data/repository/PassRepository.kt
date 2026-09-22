@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import org.shadowgrove.passporta.data.local.dao.PassDao
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
+import org.shadowgrove.passporta.data.local.entity.PassBarcodeEntity
 import org.shadowgrove.passporta.data.local.model.FolderSummary
 import org.shadowgrove.passporta.data.local.model.PassWithFields
 
@@ -31,6 +32,8 @@ class PassRepository(
     suspend fun getPass(id: String): PassEntity? = passDao.findById(id)
 
     suspend fun getFields(passId: String): List<PassFieldEntity> = passDao.fieldsOf(passId)
+
+    suspend fun getBarcodes(passId: String): List<PassBarcodeEntity> = passDao.barcodesOf(passId)
 
     /** Finds an already saved pass with identical barcode data (duplicate protection). */
     suspend fun findDuplicate(barcodeData: String): PassEntity? =
@@ -69,6 +72,7 @@ class PassRepository(
     suspend fun saveWithFields(
         pass: PassEntity,
         fields: List<PassFieldEntity>,
+        barcodes: List<PassBarcodeEntity> = emptyList(),
         now: Long = System.currentTimeMillis(),
     ): String {
         val id = save(pass, now)
@@ -88,6 +92,26 @@ class PassRepository(
             .mapIndexed { index, field -> field.copy(position = index) }
 
         passDao.replaceFields(id, normalized)
+        val normalizedBarcodes = barcodes.ifEmpty {
+            listOf(
+                PassBarcodeEntity(
+                    passId = id,
+                    barcodeData = pass.barcodeData,
+                    barcodeType = pass.barcodeType,
+                    barcodeAltText = pass.barcodeAltText,
+                    barcodeEcc = pass.barcodeEcc,
+                    barcodeEncoding = pass.barcodeEncoding,
+                    position = 0,
+                ),
+            )
+        }
+            .mapIndexed { index, barcode ->
+                barcode.copy(
+                    passId = id,
+                    position = index,
+                )
+            }
+        passDao.replaceBarcodes(id, normalizedBarcodes)
         return id
     }
 
@@ -125,9 +149,33 @@ class PassRepository(
      * restored pass should keep its original timestamps and values byte for byte, not look like
      * it was just edited by the user.
      */
-    suspend fun restore(pass: PassEntity, fields: List<PassFieldEntity>) {
+    suspend fun restore(
+        pass: PassEntity,
+        fields: List<PassFieldEntity>,
+        barcodes: List<PassBarcodeEntity> = emptyList(),
+    ) {
         passDao.upsert(pass)
         passDao.replaceFields(pass.id, fields.mapIndexed { index, field -> field.copy(passId = pass.id, position = index) })
+        val normalizedBarcodes = barcodes.ifEmpty {
+            listOf(
+                PassBarcodeEntity(
+                    passId = pass.id,
+                    barcodeData = pass.barcodeData,
+                    barcodeType = pass.barcodeType,
+                    barcodeAltText = pass.barcodeAltText,
+                    barcodeEcc = pass.barcodeEcc,
+                    barcodeEncoding = pass.barcodeEncoding,
+                    position = 0,
+                ),
+            )
+        }
+            .mapIndexed { index, barcode ->
+                barcode.copy(
+                    passId = pass.id,
+                    position = index,
+                )
+            }
+        passDao.replaceBarcodes(pass.id, normalizedBarcodes)
     }
 
     private companion object {

@@ -12,6 +12,22 @@ class PassFieldDraft(
     val section: PassFieldSection = PassFieldSection.DEFAULT,
 )
 
+/** A single barcode as delivered by the source, before it becomes a database row. */
+class BarcodeDraft(
+    val data: String,
+    val type: BarcodeType = BarcodeType.DEFAULT,
+    val altText: String? = null,
+    val ecc: String? = null,
+    val encoding: String? = null,
+) {
+
+    /** Same visual code - decides deduplication regardless of format/alt-text quirks. */
+    override fun equals(other: Any?): Boolean =
+        other is BarcodeDraft && data == other.data && type == other.type
+
+    override fun hashCode(): Int = 31 * data.hashCode() + type.hashCode()
+}
+
 /**
  * Intermediate result of an import - not yet tied to database or file.
  *
@@ -34,6 +50,12 @@ class PassDraft(
 
     /** Character set of the barcode payload (pkpass: `messageEncoding`). */
     val barcodeEncoding: String? = null,
+
+    /**
+     * All barcodes of the pass in display order, deduplicated by [BarcodeDraft.equals].
+     * Empty when the source only provides the single legacy [barcodeData]/[barcodeType] pair.
+     */
+    val barcodes: List<BarcodeDraft> = emptyList(),
 
     /** Explicitly given background color; `null` = derive from the logo. */
     @ColorInt val backgroundColor: Int? = null,

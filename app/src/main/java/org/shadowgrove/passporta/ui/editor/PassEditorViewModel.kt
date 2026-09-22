@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import org.shadowgrove.passporta.data.importer.LocalDocumentSource
 import org.shadowgrove.passporta.data.importer.PassAssetStore
 import org.shadowgrove.passporta.data.local.entity.BarcodeType
+import org.shadowgrove.passporta.data.local.entity.PassBarcodeEntity
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
 import org.shadowgrove.passporta.data.local.entity.PassSource
@@ -56,6 +57,22 @@ data class EditableField(
     val value: String = "",
 )
 
+/**
+ * An editable barcode row.
+ *
+ * [id] stays stable across changes, so Compose correctly maps the input fields when a barcode
+ * is added or removed.
+ */
+@Immutable
+data class EditableBarcode(
+    val id: String = UUID.randomUUID().toString(),
+    val data: String = "",
+    val type: BarcodeType = BarcodeType.DEFAULT,
+    val altText: String = "",
+    val ecc: String? = null,
+    val encoding: String? = null,
+)
+
 @Immutable
 data class PassEditorUiState(
     val title: String = "",
@@ -63,8 +80,9 @@ data class PassEditorUiState(
     val ownerName: String = "",
     val identifier: String = "",
     val folderName: String = PassEntity.DEFAULT_FOLDER,
-    val barcodeData: String = "",
-    val barcodeType: BarcodeType = BarcodeType.DEFAULT,
+
+    /** All barcodes of the pass - always at least one row, even if still empty. */
+    val barcodes: List<EditableBarcode> = listOf(EditableBarcode()),
     val backgroundColor: Int = PassEntity.DEFAULT_BACKGROUND_COLOR,
 
     /** Additional fields as label-value pairs. */
@@ -107,7 +125,7 @@ data class PassEditorUiState(
 
     /** Without a barcode and title, the pass makes no sense. */
     val canSave: Boolean
-        get() = barcodeData.isNotBlank() && title.isNotBlank() && !isScanning
+        get() = barcodes.any { it.data.isNotBlank() } && title.isNotBlank() && !isScanning
 }
 
 /**
@@ -143,8 +161,6 @@ class PassEditorViewModel(
     private var originalFilePath: String? = null
     private var originalFileName: String? = null
     private var originalMimeType: String? = null
-    private var barcodeEcc: String? = null
-    private var barcodeEncoding: String? = null
     private var latitude: Double? = null
     private var longitude: Double? = null
 
@@ -189,16 +205,37 @@ class PassEditorViewModel(
         viewModelScope.launch {
             val pass = repository.getPass(id) ?: return@launch
             val fields = repository.getFields(id)
+            val storedBarcodes = repository.getBarcodes(id)
 
             logoPath = pass.logoPath
             iconKey = pass.iconKey
             originalFilePath = pass.originalFilePath
             originalFileName = pass.originalFileName
             originalMimeType = pass.originalMimeType
-            barcodeEcc = pass.barcodeEcc
-            barcodeEncoding = pass.barcodeEncoding
             latitude = pass.locationLatitude
             longitude = pass.locationLongitude
+
+            val barcodes = if (storedBarcodes.isNotEmpty()) {
+                storedBarcodes.sortedBy { it.position }.map { barcode ->
+                    EditableBarcode(
+                        data = barcode.barcodeData,
+                        type = barcode.barcodeType,
+                        altText = barcode.barcodeAltText.orEmpty(),
+                        ecc = barcode.barcodeEcc,
+                        encoding = barcode.barcodeEncoding,
+                    )
+                }
+            } else {
+                listOf(
+                    EditableBarcode(
+                        data = pass.barcodeData,
+                        type = pass.barcodeType,
+                        altText = pass.barcodeAltText.orEmpty(),
+                        ecc = pass.barcodeEcc,
+                        encoding = pass.barcodeEncoding,
+                    ),
+                )
+            }
 
             state.update {
                 it.copy(
@@ -207,8 +244,7 @@ class PassEditorViewModel(
                     ownerName = pass.ownerName,
                     identifier = pass.identifier.orEmpty(),
                     folderName = pass.folderName,
-                    barcodeData = pass.barcodeData,
-                    barcodeType = pass.barcodeType,
+                    barcodes = barcodes,
                     backgroundColor = pass.backgroundColor,
                     location = pass.location.orEmpty(),
                     expirationDate = pass.expirationDate,
@@ -226,7 +262,6 @@ class PassEditorViewModel(
     private fun scan(uri: Uri) {
         viewModelScope.launch {
             val result = scanner.scan(uri)
-            barcodeEcc = result.barcodeEcc
 
             // The scanned source is preserved, so it remains reachable later via "view original
             // document".
@@ -261,8 +296,22 @@ class PassEditorViewModel(
                     // scan result shouldn't override that deliberate choice.
                     ownerName = defaultOwnerName.ifBlank { result.ownerName.orEmpty() },
                     identifier = result.identifier.orEmpty(),
-                    barcodeData = result.barcodeData.orEmpty(),
-                    barcodeType = result.barcodeType ?: current.barcodeType,
+                    barcodes = result.barcodes.takeIf { it.isNotEmpty() }
+                        ?.map { scanned ->
+                            EditableBarcode(
+                                data = scanned.data,
+                                type = scanned.type,
+                                ecc = scanned.ecc,
+                            )
+                        }
+                        ?: listOf(
+                            EditableBarcode(
+                                data = result.barcodeData.orEmpty(),
+                                type = result.barcodeType ?: current.barcodes.firstOrNull()?.type
+                                    ?: BarcodeType.DEFAULT,
+                                ecc = result.barcodeEcc,
+                            ),
+                        ),
                     icon = suggestedIcon,
                     // Adopt recognized label-value pairs directly; the user can correct or
                     // delete them in the form.
@@ -283,10 +332,37 @@ class PassEditorViewModel(
     fun updateOwnerName(value: String) = state.update { it.copy(ownerName = value) }
     fun updateIdentifier(value: String) = state.update { it.copy(identifier = value) }
     fun updateFolderName(value: String) = state.update { it.copy(folderName = value) }
-    fun updateBarcodeData(value: String) = state.update { it.copy(barcodeData = value) }
-    fun updateBarcodeType(value: BarcodeType) = state.update { it.copy(barcodeType = value) }
     fun updateBackgroundColor(value: Int) = state.update { it.copy(backgroundColor = value) }
     fun updateLocation(value: String) = state.update { it.copy(location = value) }
+
+    // --- Barcodes ---
+
+    /** Adds a new, still-empty barcode row - the user fills in data and type afterwards. */
+    fun addBarcode() = state.update { it.copy(barcodes = it.barcodes + EditableBarcode()) }
+
+    /** Removes a barcode row; at least one row always remains. */
+    fun removeBarcode(id: String) = state.update { current ->
+        val remaining = current.barcodes.filterNot { it.id == id }
+        current.copy(barcodes = remaining.ifEmpty { listOf(EditableBarcode()) })
+    }
+
+    fun updateBarcodeData(id: String, value: String) = updateBarcode(id) { it.copy(data = value) }
+
+    fun updateBarcodeType(id: String, value: BarcodeType) =
+        updateBarcode(id) { it.copy(type = value) }
+
+    fun updateBarcodeAltText(id: String, value: String) =
+        updateBarcode(id) { it.copy(altText = value) }
+
+    private fun updateBarcode(id: String, transform: (EditableBarcode) -> EditableBarcode) {
+        state.update { current ->
+            current.copy(
+                barcodes = current.barcodes.map { barcode ->
+                    if (barcode.id == id) transform(barcode) else barcode
+                },
+            )
+        }
+    }
 
     /**
      * Sets the expiration date - ignored if it would fall before [PassEditorUiState.startDate].
@@ -388,6 +464,9 @@ class PassEditorViewModel(
 
         viewModelScope.launch {
             val existing = passId?.let { repository.getPass(it) }
+            val normalizedBarcodes = current.barcodes.filter { it.data.isNotBlank() }
+                .ifEmpty { current.barcodes.take(1) }
+            val primary = normalizedBarcodes.firstOrNull()
             val id = repository.saveWithFields(
                 pass = PassEntity(
                     id = existing?.id ?: draftId,
@@ -399,11 +478,11 @@ class PassEditorViewModel(
                     // Without a recognized name, the title is the best available value.
                     ownerName = current.ownerName.ifBlank { current.title },
                     identifier = current.identifier.takeIf { it.isNotBlank() },
-                    barcodeData = current.barcodeData,
-                    barcodeType = current.barcodeType,
-                    barcodeAltText = existing?.barcodeAltText,
-                    barcodeEcc = barcodeEcc,
-                    barcodeEncoding = barcodeEncoding,
+                    barcodeData = primary?.data.orEmpty(),
+                    barcodeType = primary?.type ?: BarcodeType.DEFAULT,
+                    barcodeAltText = primary?.altText?.takeIf { it.isNotBlank() },
+                    barcodeEcc = primary?.ecc,
+                    barcodeEncoding = primary?.encoding,
                     backgroundColor = current.backgroundColor,
                     logoPath = logoPath,
                     iconKey = iconKey,
@@ -424,6 +503,17 @@ class PassEditorViewModel(
                         passId = draftId,
                         label = field.label.takeIf { it.isNotBlank() },
                         value = field.value,
+                        position = index,
+                    )
+                },
+                barcodes = normalizedBarcodes.mapIndexed { index, barcode ->
+                    PassBarcodeEntity(
+                        passId = draftId,
+                        barcodeData = barcode.data,
+                        barcodeType = barcode.type,
+                        barcodeAltText = barcode.altText.takeIf { it.isNotBlank() },
+                        barcodeEcc = barcode.ecc,
+                        barcodeEncoding = barcode.encoding,
                         position = index,
                     )
                 },

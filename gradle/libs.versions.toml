@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.2"
+agp = "9.3.3"
 # Explizites Kotlin-Plugin statt AGP-Built-in-Kotlin: die aktuellen AndroidX-/Compose-Artefakte
 # tragen Kotlin-2.4-Metadaten, die der eingebaute 2.2.x-Compiler nicht lesen kann.
 kotlin = "2.4.10"
