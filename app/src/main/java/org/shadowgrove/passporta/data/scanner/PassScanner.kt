@@ -288,24 +288,28 @@ private fun Barcode.value(): String? =
 /**
  * Maps ML Kit formats to the types PassPorta can render.
  *
- * Formats outside the supported ones (EAN, UPC, Code 39, ...) are mapped to CODE128: it can
- * encode the same characters and is widely used at checkouts. The user can correct the type in
- * the form.
+ * Formats outside the supported ones (Code 39, ...) are mapped to CODE128: it can encode the same
+ * characters and is widely used at checkouts. The user can correct the type in the form.
  */
 private fun toBarcodeType(format: Int): BarcodeType = when (format) {
     Barcode.FORMAT_QR_CODE -> BarcodeType.QR
     Barcode.FORMAT_AZTEC -> BarcodeType.AZTEC
     Barcode.FORMAT_PDF417 -> BarcodeType.PDF417
-    Barcode.FORMAT_DATA_MATRIX -> BarcodeType.QR
+    Barcode.FORMAT_DATA_MATRIX -> BarcodeType.DATA_MATRIX
+    Barcode.FORMAT_UPC_A, Barcode.FORMAT_UPC_E -> BarcodeType.UPC
+    Barcode.FORMAT_EAN_8, Barcode.FORMAT_EAN_13 -> BarcodeType.EAN
     Barcode.FORMAT_ITF -> BarcodeType.ITF
     else -> BarcodeType.CODE128
 }
 
 /** Same for the ZXing formats of the second pass. */
 private fun toBarcodeType(format: ZxingFormat): BarcodeType = when (format) {
-    ZxingFormat.QR_CODE, ZxingFormat.DATA_MATRIX -> BarcodeType.QR
+    ZxingFormat.QR_CODE -> BarcodeType.QR
+    ZxingFormat.DATA_MATRIX -> BarcodeType.DATA_MATRIX
     ZxingFormat.AZTEC -> BarcodeType.AZTEC
     ZxingFormat.PDF_417 -> BarcodeType.PDF417
+    ZxingFormat.UPC_A, ZxingFormat.UPC_E -> BarcodeType.UPC
+    ZxingFormat.EAN_8, ZxingFormat.EAN_13 -> BarcodeType.EAN
     ZxingFormat.ITF -> BarcodeType.ITF
     else -> BarcodeType.CODE128
 }

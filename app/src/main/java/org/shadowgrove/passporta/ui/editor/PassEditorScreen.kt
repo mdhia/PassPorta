@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Grid4x4
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.QrCode2
@@ -498,10 +499,12 @@ private fun BarcodeTypeIcon(type: BarcodeType) {
     Icon(
         imageVector = when (type) {
             BarcodeType.QR -> Icons.Default.QrCode2
+            BarcodeType.DATA_MATRIX -> Icons.Default.Grid4x4
             BarcodeType.AZTEC -> Icons.Default.GridOn
             BarcodeType.PDF417 -> Icons.Default.ViewHeadline
             BarcodeType.CODE128 -> Icons.Default.ViewWeek
             BarcodeType.ITF -> Icons.Default.Numbers
+            BarcodeType.UPC, BarcodeType.EAN -> Icons.Default.Numbers
         },
         contentDescription = null,
     )

@@ -8,9 +8,12 @@ package org.shadowgrove.passporta.data.local.entity
  */
 enum class BarcodeType(val storageKey: String) {
     QR("QR"),
+    DATA_MATRIX("DATA_MATRIX"),
     AZTEC("AZTEC"),
     PDF417("PDF417"),
     CODE128("CODE128"),
+    UPC("UPC"),
+    EAN("EAN"),
 
     /**
      * Interleaved 2 of 5 - a pure digit sequence of even length.
@@ -32,9 +35,14 @@ enum class BarcodeType(val storageKey: String) {
         fun fromKeyOrNull(rawKey: String?): BarcodeType? {
             if (rawKey.isNullOrBlank()) return null
             val normalized = rawKey.uppercase().filter { it.isLetterOrDigit() }
-            return entries.firstOrNull { normalized.contains(it.storageKey) }
+            return entries.firstOrNull {
+                normalized.contains(it.storageKey.uppercase().filter(Char::isLetterOrDigit))
+            }
                 ?: when {
                     normalized.contains("QRCODE") -> QR
+                    normalized.contains("DATAMATRIX") -> DATA_MATRIX
+                    normalized.contains("UPCA") || normalized.contains("UPCE") -> UPC
+                    normalized.contains("EAN8") || normalized.contains("EAN13") -> EAN
                     normalized.contains("CODE39") -> CODE128
                     // Google's Wallet API and many label printers write "2OF5" or
                     // "INTERLEAVED25" instead of "ITF".

@@ -33,6 +33,7 @@ object BarcodeRenderer {
      * look stretched.
      */
     private const val ITF_ASPECT_RATIO = 2.5f
+    private const val UPC_EAN_ASPECT_RATIO = 2.5f
 
     /**
      * Default when the level of the original is unknown.
@@ -72,7 +73,7 @@ object BarcodeRenderer {
         }
 
         val matrix = runCatching {
-            MultiFormatWriter().encode(data, type.toZxingFormat(), widthPx, heightPx, hints)
+            MultiFormatWriter().encode(data, type.toZxingFormat(data), widthPx, heightPx, hints)
         }.getOrNull() ?: return null
 
         return matrix.toBitmap(foregroundColor, backgroundColor)
@@ -113,8 +114,10 @@ object BarcodeRenderer {
             // Percentage share of check data.
             BarcodeType.AZTEC -> raw?.toIntOrNull()?.coerceIn(0, 100)
 
-            // 1D formats without selectable error correction.
-            BarcodeType.CODE128, BarcodeType.ITF -> null
+            // Data Matrix uses the fixed ECC 200 scheme; 1D formats have no selectable error
+            // correction.
+            BarcodeType.DATA_MATRIX, BarcodeType.CODE128, BarcodeType.ITF,
+            BarcodeType.UPC, BarcodeType.EAN -> null
         }
     }
 
@@ -124,18 +127,29 @@ object BarcodeRenderer {
 
     /** Aspect ratio for the Compose layout, so the space can be reserved in advance. */
     fun aspectRatio(type: BarcodeType): Float = when (type) {
-        BarcodeType.QR, BarcodeType.AZTEC -> 1f
+        BarcodeType.QR, BarcodeType.DATA_MATRIX, BarcodeType.AZTEC -> 1f
         BarcodeType.PDF417 -> PDF417_ASPECT_RATIO
         BarcodeType.CODE128 -> CODE128_ASPECT_RATIO
         BarcodeType.ITF -> ITF_ASPECT_RATIO
+        BarcodeType.UPC, BarcodeType.EAN -> UPC_EAN_ASPECT_RATIO
     }
 
-    private fun BarcodeType.toZxingFormat(): BarcodeFormat = when (this) {
+    private fun BarcodeType.toZxingFormat(data: String): BarcodeFormat = when (this) {
         BarcodeType.QR -> BarcodeFormat.QR_CODE
+        BarcodeType.DATA_MATRIX -> BarcodeFormat.DATA_MATRIX
         BarcodeType.AZTEC -> BarcodeFormat.AZTEC
         BarcodeType.PDF417 -> BarcodeFormat.PDF_417
         BarcodeType.CODE128 -> BarcodeFormat.CODE_128
         BarcodeType.ITF -> BarcodeFormat.ITF
+        // ZXing validates the required digit count for each UPC/EAN variant.
+        BarcodeType.UPC -> when (data.length) {
+            6, 8 -> BarcodeFormat.UPC_E
+            else -> BarcodeFormat.UPC_A
+        }
+        BarcodeType.EAN -> when (data.length) {
+            8 -> BarcodeFormat.EAN_8
+            else -> BarcodeFormat.EAN_13
+        }
     }
 
     /**

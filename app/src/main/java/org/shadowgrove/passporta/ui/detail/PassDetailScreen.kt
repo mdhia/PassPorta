@@ -455,8 +455,9 @@ private fun BarcodePanel(
     ) {
         val maxAllowed = { type: BarcodeType ->
             when (type) {
-                BarcodeType.QR, BarcodeType.AZTEC -> MaxBarcodeWidth2D
-                BarcodeType.PDF417, BarcodeType.CODE128, BarcodeType.ITF -> MaxBarcodeWidth1D
+                BarcodeType.QR, BarcodeType.DATA_MATRIX, BarcodeType.AZTEC -> MaxBarcodeWidth2D
+                BarcodeType.PDF417, BarcodeType.CODE128, BarcodeType.ITF,
+                BarcodeType.UPC, BarcodeType.EAN -> MaxBarcodeWidth1D
             }
         }
         // Captured here: inside the pager's content lambda, `maxWidth` would no longer resolve
