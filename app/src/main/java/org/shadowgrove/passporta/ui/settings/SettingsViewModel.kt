@@ -106,6 +106,10 @@ class SettingsViewModel(
 
     fun setDefaultFolderName(value: String) = store.setDefaultFolderName(value)
 
+    fun setAutomaticBackupFolderUri(value: String?) = store.setAutomaticBackupFolderUri(value)
+
+    fun setRollingBackupCount(value: Int) = store.setRollingBackupCount(value)
+
     /**
      * Switches the app's display language.
      *

@@ -11,6 +11,17 @@ internal data class BackupField(
     val position: Int = 0,
 )
 
+/** One barcode of a pass, including its display order and encoding metadata. */
+@Serializable
+internal data class BackupBarcode(
+    val barcodeData: String,
+    val barcodeType: String,
+    val barcodeAltText: String? = null,
+    val barcodeEcc: String? = null,
+    val barcodeEncoding: String? = null,
+    val position: Int = 0,
+)
+
 /**
  * A pass as stored in a backup archive.
  *
@@ -33,6 +44,8 @@ internal data class BackupPass(
     val barcodeAltText: String? = null,
     val barcodeEcc: String? = null,
     val barcodeEncoding: String? = null,
+    /** Empty in legacy backups; the legacy fields above are then used as one barcode. */
+    val barcodes: List<BackupBarcode> = emptyList(),
     val backgroundColor: Int,
     val logoPath: String? = null,
     val iconKey: String? = null,
@@ -62,6 +75,7 @@ internal data class BackupSettings(
     val showUpcomingInFolders: Boolean = false,
     val defaultOwnerName: String? = null,
     val defaultFolderName: String? = null,
+    val rollingBackupCount: Int = 5,
 )
 
 /**
@@ -77,7 +91,7 @@ internal data class BackupManifest(
     val settings: BackupSettings? = null,
 ) {
     companion object {
-        const val CURRENT_FORMAT_VERSION: Int = 1
+        const val CURRENT_FORMAT_VERSION: Int = 2
     }
 }
 

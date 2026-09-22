@@ -151,6 +151,11 @@
     <string name="settings_backup_error_write_failed">The backup could not be written.</string>
     <string name="settings_backup_error_read_failed">The file could not be read.</string>
     <string name="settings_backup_error_invalid_file">This is not a valid PassPorta backup.</string>
+    <string name="settings_backup_folder">Automatic backup folder</string>
+    <string name="settings_backup_folder_none">No folder selected – automatic backups are disabled.</string>
+    <string name="settings_backup_folder_choose">Choose</string>
+    <string name="settings_backup_folder_remove">Remove</string>
+    <string name="settings_backup_rolling_count">Keep the last %1$d automatic backups</string>
     <string name="settings_dynamic_color">Use system colors</string>
     <string name="settings_dynamic_color_hint">Adopts the wallpaper\'s colors from Android 12 onward, overriding the selection above.</string>
     <string name="settings_mode_system">Same as system</string>

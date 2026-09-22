@@ -151,6 +151,11 @@
     <string name="settings_backup_error_write_failed">Die Sicherung konnte nicht geschrieben werden.</string>
     <string name="settings_backup_error_read_failed">Die Datei konnte nicht gelesen werden.</string>
     <string name="settings_backup_error_invalid_file">Das ist keine gültige PassPorta-Sicherung.</string>
+    <string name="settings_backup_folder">Automatischer Backup-Ordner</string>
+    <string name="settings_backup_folder_none">Kein Ordner ausgewählt – automatische Backups sind deaktiviert.</string>
+    <string name="settings_backup_folder_choose">Auswählen</string>
+    <string name="settings_backup_folder_remove">Entfernen</string>
+    <string name="settings_backup_rolling_count">Letzte %1$d automatische Backups behalten</string>
     <string name="settings_dynamic_color">Systemfarben verwenden</string>
     <string name="settings_dynamic_color_hint">Übernimmt ab Android 12 die Farben des Hintergrundbilds und überschreibt dabei die Auswahl oben.</string>
     <string name="settings_mode_system">Wie das System</string>

@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.shadowgrove.passporta.data.importer.LocalDocumentSource
 import org.shadowgrove.passporta.data.importer.PassAssetStore
+import org.shadowgrove.passporta.data.backup.AutomaticBackupCoordinator
 import org.shadowgrove.passporta.data.local.entity.BarcodeType
 import org.shadowgrove.passporta.data.local.entity.PassBarcodeEntity
 import org.shadowgrove.passporta.data.local.entity.PassEntity
@@ -140,6 +141,7 @@ class PassEditorViewModel(
     private val assetStore: PassAssetStore,
     private val documentSource: LocalDocumentSource,
     settingsStore: SettingsStore,
+    private val automaticBackupCoordinator: AutomaticBackupCoordinator,
     private val passId: String?,
     sourceUri: Uri?,
 ) : ViewModel() {
@@ -533,6 +535,7 @@ class PassEditorViewModel(
                     )
                 },
             )
+            automaticBackupCoordinator.requestBackup()
             onSaved(id)
         }
     }
@@ -550,6 +553,7 @@ class PassEditorViewModel(
                         assetStore = app.passAssetStore,
                         documentSource = app.documentSource,
                         settingsStore = app.settingsStore,
+                        automaticBackupCoordinator = app.automaticBackupCoordinator,
                         passId = passId,
                         sourceUri = sourceUri,
                     )

@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.shadowgrove.passporta.data.importer.pkpass.PkPassParser
 import org.shadowgrove.passporta.data.importer.wallet.WalletLinkParser
+import org.shadowgrove.passporta.data.backup.AutomaticBackupCoordinator
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
 import org.shadowgrove.passporta.data.local.entity.PassBarcodeEntity
@@ -44,6 +45,7 @@ class PassImporter(
     private val pkPassParser: PkPassParser = PkPassParser(),
     private val walletLinkParser: WalletLinkParser = WalletLinkParser(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val automaticBackupCoordinator: AutomaticBackupCoordinator? = null,
 ) {
 
     private val appContext: Context = context.applicationContext
@@ -102,6 +104,7 @@ class PassImporter(
             )
 
             val persisted = persist(listOf(import.draft), original)
+            automaticBackupCoordinator?.requestBackup()
             PassImportResult.Success(
                 passIds = persisted.ids,
                 updatedCount = persisted.updatedCount,
@@ -114,6 +117,7 @@ class PassImporter(
     suspend fun importFromLink(rawLink: String): PassImportResult = withContext(dispatcher) {
         runImport {
             val persisted = persist(walletLinkParser.parse(rawLink), original = null)
+            automaticBackupCoordinator?.requestBackup()
             PassImportResult.Success(passIds = persisted.ids, updatedCount = persisted.updatedCount)
         }
     }

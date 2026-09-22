@@ -1,6 +1,7 @@
 package org.shadowgrove.passporta.data.backup
 
 import org.shadowgrove.passporta.data.local.entity.BarcodeType
+import org.shadowgrove.passporta.data.local.entity.PassBarcodeEntity
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldSection
@@ -25,6 +26,16 @@ internal fun PassWithFields.toBackupPass(): BackupPass = BackupPass(
     barcodeAltText = pass.barcodeAltText,
     barcodeEcc = pass.barcodeEcc,
     barcodeEncoding = pass.barcodeEncoding,
+    barcodes = orderedBarcodes.map { barcode ->
+        BackupBarcode(
+            barcodeData = barcode.barcodeData,
+            barcodeType = barcode.barcodeType.storageKey,
+            barcodeAltText = barcode.barcodeAltText,
+            barcodeEcc = barcode.barcodeEcc,
+            barcodeEncoding = barcode.barcodeEncoding,
+            position = barcode.position,
+        )
+    },
     backgroundColor = pass.backgroundColor,
     logoPath = pass.logoPath,
     iconKey = pass.iconKey,
@@ -33,6 +44,7 @@ internal fun PassWithFields.toBackupPass(): BackupPass = BackupPass(
     originalFileName = pass.originalFileName,
     originalMimeType = pass.originalMimeType,
     expirationDate = pass.expirationDate,
+    startDate = pass.startDate,
     location = pass.location,
     locationLatitude = pass.locationLatitude,
     locationLongitude = pass.locationLongitude,
@@ -81,6 +93,7 @@ internal fun BackupPass.toPassEntity(
     originalFileName = originalFileName,
     originalMimeType = originalMimeType,
     expirationDate = expirationDate,
+    startDate = startDate,
     location = location,
     locationLatitude = locationLatitude,
     locationLongitude = locationLongitude,
@@ -88,6 +101,17 @@ internal fun BackupPass.toPassEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
 )
+
+internal fun BackupBarcode.toPassBarcodeEntity(passId: String, position: Int): PassBarcodeEntity =
+    PassBarcodeEntity(
+        passId = passId,
+        barcodeData = barcodeData,
+        barcodeType = BarcodeType.fromKey(barcodeType),
+        barcodeAltText = barcodeAltText,
+        barcodeEcc = barcodeEcc,
+        barcodeEncoding = barcodeEncoding,
+        position = position,
+    )
 
 internal fun BackupField.toPassFieldEntity(passId: String): PassFieldEntity = PassFieldEntity(
     passId = passId,
@@ -106,6 +130,7 @@ internal fun AppSettings.toBackupSettings(): BackupSettings = BackupSettings(
     showUpcomingInFolders = showUpcomingInFolders,
     defaultOwnerName = defaultOwnerName,
     defaultFolderName = defaultFolderName,
+    rollingBackupCount = rollingBackupCount,
 )
 
 /** Applies a restored settings block through the store's normal setters. */
@@ -118,6 +143,7 @@ internal fun SettingsStore.restore(settings: BackupSettings) {
     setShowUpcomingInFolders(settings.showUpcomingInFolders)
     settings.defaultOwnerName?.let { setDefaultOwnerName(it) }
     settings.defaultFolderName?.let { setDefaultFolderName(it) }
+    setRollingBackupCount(settings.rollingBackupCount)
 }
 
 

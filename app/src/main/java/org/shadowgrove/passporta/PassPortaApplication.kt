@@ -2,6 +2,7 @@ package org.shadowgrove.passporta
 
 import android.app.Application
 import org.shadowgrove.passporta.data.backup.BackupManager
+import org.shadowgrove.passporta.data.backup.AutomaticBackupCoordinator
 import org.shadowgrove.passporta.data.importer.LocalDocumentSource
 import org.shadowgrove.passporta.data.importer.PassAssetStore
 import org.shadowgrove.passporta.data.importer.PassImporter
@@ -33,7 +34,13 @@ class PassPortaApplication : Application() {
     val pageRenderer: PageRenderer by lazy { PageRenderer(this) }
 
     val passImporter: PassImporter by lazy {
-        PassImporter(this, passRepository, passAssetStore, documentSource)
+        PassImporter(
+            context = this,
+            repository = passRepository,
+            assetStore = passAssetStore,
+            documentSource = documentSource,
+            automaticBackupCoordinator = automaticBackupCoordinator,
+        )
     }
 
     /** Offline extraction from images and PDFs (ML Kit, bundled models). */
@@ -45,5 +52,9 @@ class PassPortaApplication : Application() {
     /** Full data export/import (passes, assets and settings) as a single `.zip` archive. */
     val backupManager: BackupManager by lazy {
         BackupManager(this, passRepository, passAssetStore, settingsStore)
+    }
+
+    val automaticBackupCoordinator: AutomaticBackupCoordinator by lazy {
+        AutomaticBackupCoordinator(settingsStore, backupManager)
     }
 }

@@ -1,5 +1,8 @@
 package org.shadowgrove.passporta.ui.settings
 
+import android.content.Intent
+import android.net.Uri
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,6 +41,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -51,6 +57,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -61,6 +68,8 @@ import org.shadowgrove.passporta.data.settings.AppThemeColor
 import org.shadowgrove.passporta.data.settings.AppThemeMode
 import org.shadowgrove.passporta.ui.model.PassPalette
 import org.shadowgrove.passporta.ui.toUserMessage
+import androidx.documentfile.provider.DocumentFile
+import kotlin.math.roundToInt
 
 /** Size of a color swatch in the color picker. */
 private val SwatchSize = 44.dp
@@ -102,7 +111,25 @@ fun SettingsScreen(
     var language by remember { mutableStateOf(AppLanguage.current()) }
 
     val resources = LocalResources.current
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val automaticBackupFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null) {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, flags) }
+                .onSuccess { viewModel.setAutomaticBackupFolderUri(uri.toString()) }
+        }
+    }
+
+    val automaticBackupFolderName = remember(settings.automaticBackupFolderUri) {
+        settings.automaticBackupFolderUri
+            ?.let(Uri::parse)
+            ?.let { DocumentFile.fromTreeUri(context, it)?.name }
+            ?.takeIf { it.isNotBlank() }
+    }
 
     LaunchedEffect(viewModel, resources) {
         viewModel.backupResults.collect { result ->
@@ -289,6 +316,60 @@ fun SettingsScreen(
                     importBackupLauncher.launch(BACKUP_MIME_TYPES)
                 },
             )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_backup_folder)) },
+                supportingContent = {
+                    Text(
+                        automaticBackupFolderName
+                            ?: stringResource(R.string.settings_backup_folder_none),
+                    )
+                },
+                trailingContent = {
+                    Row {
+                        TextButton(onClick = { automaticBackupFolderLauncher.launch(null) }) {
+                            Text(stringResource(R.string.settings_backup_folder_choose))
+                        }
+                        if (settings.automaticBackupFolderUri != null) {
+                            TextButton(onClick = {
+                                settings.automaticBackupFolderUri?.let(Uri::parse)?.let { uri ->
+                                    runCatching {
+                                        context.contentResolver.releasePersistableUriPermission(
+                                            uri,
+                                            Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                                Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                                        )
+                                    }
+                                }
+                                viewModel.setAutomaticBackupFolderUri(null)
+                            }) {
+                                Text(stringResource(R.string.settings_backup_folder_remove))
+                            }
+                        }
+                    }
+                },
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = stringResource(
+                        R.string.settings_backup_rolling_count,
+                        settings.rollingBackupCount,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Slider(
+                    value = settings.rollingBackupCount.toFloat(),
+                    onValueChange = { viewModel.setRollingBackupCount(it.roundToInt()) },
+                    valueRange = 1f..7f,
+                    steps = 5,
+                    enabled = settings.automaticBackupFolderUri != null,
+                )
+            }
 
             HorizontalDivider()
             SectionTitle(stringResource(R.string.settings_section_about))

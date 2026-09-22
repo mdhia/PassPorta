@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.shadowgrove.passporta.data.importer.PassAssetStore
+import org.shadowgrove.passporta.data.backup.AutomaticBackupCoordinator
 import org.shadowgrove.passporta.data.repository.PassRepository
 import org.shadowgrove.passporta.data.settings.SettingsStore
 import org.shadowgrove.passporta.ui.model.PassUi
@@ -36,6 +37,7 @@ class PassDetailViewModel(
     private val assetStore: PassAssetStore,
     private val passId: String,
     settingsStore: SettingsStore,
+    private val automaticBackupCoordinator: AutomaticBackupCoordinator,
 ) : ViewModel() {
 
     val uiState: StateFlow<PassDetailUiState> = combine(
@@ -78,6 +80,7 @@ class PassDetailViewModel(
                     pass?.heroImagePath,
                     pass?.originalFilePath,
                 )
+                automaticBackupCoordinator.requestBackup()
             }
         }
     }
@@ -94,6 +97,7 @@ class PassDetailViewModel(
                     assetStore = app.passAssetStore,
                     passId = passId,
                     settingsStore = app.settingsStore,
+                    automaticBackupCoordinator = app.automaticBackupCoordinator,
                 )
             }
         }

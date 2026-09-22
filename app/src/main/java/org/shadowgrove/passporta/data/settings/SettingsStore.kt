@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 
+private const val DEFAULT_ROLLING_BACKUP_COUNT = 5
+
 /** Color mood of the frame surface. Passes always keep their own colors. */
 enum class AppThemeColor(val key: String) {
     INDIGO("indigo"),
@@ -71,6 +73,12 @@ data class AppSettings(
 
     /** Pre-filled folder for newly created passes. */
     val defaultFolderName: String = PassEntity.DEFAULT_FOLDER,
+
+    /** SAF tree URI for automatic backups; `null` disables automatic backups. */
+    val automaticBackupFolderUri: String? = null,
+
+    /** Number of automatic backup archives retained, always between 1 and 7. */
+    val rollingBackupCount: Int = DEFAULT_ROLLING_BACKUP_COUNT,
 )
 
 /**
@@ -126,6 +134,12 @@ class SettingsStore(context: Context) {
     fun setDefaultFolderName(value: String) =
         preferences.edit { putString(KEY_DEFAULT_FOLDER_NAME, value) }
 
+    fun setAutomaticBackupFolderUri(value: String?) =
+        preferences.edit { putString(KEY_AUTOMATIC_BACKUP_FOLDER_URI, value) }
+
+    fun setRollingBackupCount(value: Int) =
+        preferences.edit { putInt(KEY_ROLLING_BACKUP_COUNT, value.coerceIn(1, 7)) }
+
     private fun read() = AppSettings(
         themeColor = AppThemeColor.fromKey(preferences.getString(KEY_COLOR, null)),
         themeMode = AppThemeMode.fromKey(preferences.getString(KEY_MODE, null)),
@@ -136,6 +150,11 @@ class SettingsStore(context: Context) {
         defaultOwnerName = preferences.getString(KEY_DEFAULT_OWNER_NAME, null).orEmpty(),
         defaultFolderName = preferences.getString(KEY_DEFAULT_FOLDER_NAME, null)
             ?: PassEntity.DEFAULT_FOLDER,
+        automaticBackupFolderUri = preferences.getString(KEY_AUTOMATIC_BACKUP_FOLDER_URI, null),
+        rollingBackupCount = preferences.getInt(
+            KEY_ROLLING_BACKUP_COUNT,
+            DEFAULT_ROLLING_BACKUP_COUNT,
+        ).coerceIn(1, 7),
     )
 
     /**
@@ -159,5 +178,7 @@ class SettingsStore(context: Context) {
         const val KEY_UPCOMING_IN_FOLDERS = "upcoming_in_folders"
         const val KEY_DEFAULT_OWNER_NAME = "default_owner_name"
         const val KEY_DEFAULT_FOLDER_NAME = "default_folder_name"
+        const val KEY_AUTOMATIC_BACKUP_FOLDER_URI = "automatic_backup_folder_uri"
+        const val KEY_ROLLING_BACKUP_COUNT = "rolling_backup_count"
     }
 }

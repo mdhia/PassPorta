@@ -10,6 +10,7 @@ ksp = "2.3.11"
 coreKtx = "1.19.0"
 material = "1.10.0"
 appcompat = "1.7.1"
+documentfile = "1.1.0"
 activity = "1.12.4"
 composeBom = "2026.08.00"
 lifecycle = "2.11.0"
@@ -38,6 +39,7 @@ material = { group = "com.google.android.material", name = "material", version.r
 # Per-App-Language (AppCompatDelegate.setApplicationLocales) fuer API < 33 - noetig, weil das
 # System-Feature "App-Sprache" erst ab Android 13 ohne Bibliothek funktioniert.
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activity" }
 
 # --- Jetpack Compose (Material 3) ---

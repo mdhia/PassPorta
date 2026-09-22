@@ -3,6 +3,7 @@ package org.shadowgrove.passporta.data.backup
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.shadowgrove.passporta.data.importer.ImportJson
@@ -14,6 +15,10 @@ import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 
 /** Why a backup export or import could not be completed. */
 enum class BackupFailure {
@@ -94,6 +99,26 @@ class BackupManager(
         }
     }
 
+    /** Exports a uniquely named automatic backup and keeps only the newest [rollingBackupCount]. */
+    suspend fun exportAutomatic(folderUri: Uri, rollingBackupCount: Int): BackupResult =
+        withContext(Dispatchers.IO) {
+            val folder = DocumentFile.fromTreeUri(context, folderUri)
+                ?: return@withContext BackupResult.Failure(BackupFailure.WRITE_FAILED)
+            val fileName = buildAutomaticFileName()
+            val target = folder.createFile("application/zip", fileName)
+                ?: return@withContext BackupResult.Failure(BackupFailure.WRITE_FAILED)
+
+            val result = export(target.uri)
+            if (result !is BackupResult.ExportSuccess) {
+                target.delete()
+                return@withContext result
+            }
+
+            runCatching { rotateAutomaticBackups(folder, rollingBackupCount) }
+                .onFailure { Log.w(TAG, "Automatic backup rotation failed", it) }
+            result
+        }
+
     /** Restores passes, assets and settings from a previously exported archive at [source]. */
     suspend fun import(source: Uri): BackupResult = withContext(Dispatchers.IO) {
         try {
@@ -141,6 +166,11 @@ class BackupManager(
                 repository.restore(
                     pass = backupPass.toPassEntity(logoPath, heroPath, originalPath),
                     fields = backupPass.fields.map { it.toPassFieldEntity(backupPass.id) },
+                    barcodes = backupPass.barcodes
+                        .sortedBy { it.position }
+                        .mapIndexed { index, barcode ->
+                            barcode.toPassBarcodeEntity(backupPass.id, index)
+                        },
                 )
             }
 
@@ -170,6 +200,28 @@ class BackupManager(
         return assetStore.restore(path, bytes)
     }
 
+    private fun rotateAutomaticBackups(folder: DocumentFile, rollingBackupCount: Int) {
+        val keep = rollingBackupCount.coerceIn(1, 7)
+        val automaticBackups = folder.listFiles()
+            .filter { file ->
+                val name = file.name.orEmpty()
+                !file.isDirectory && name.startsWith(AUTOMATIC_BACKUP_PREFIX) && name.endsWith(".zip")
+            }
+            .sortedWith(
+                compareByDescending<DocumentFile> { it.lastModified() }
+                    .thenByDescending { it.name.orEmpty() },
+            )
+
+        automaticBackups.drop(keep).forEach { it.delete() }
+    }
+
+    private fun buildAutomaticFileName(): String {
+        val timestamp = SimpleDateFormat(AUTOMATIC_BACKUP_DATE_FORMAT, Locale.US).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }.format(Date())
+        return "$AUTOMATIC_BACKUP_PREFIX$timestamp-${UUID.randomUUID()}.zip"
+    }
+
     /** Reads at most [limit] bytes of the current zip entry; `null` if the entry is larger. */
     private fun ZipInputStream.readLimited(limit: Long): ByteArray? {
         val output = ByteArrayOutputStream()
@@ -188,6 +240,8 @@ class BackupManager(
     private companion object {
         const val TAG = "BackupManager"
         const val MANIFEST_ENTRY = "backup.json"
+        const val AUTOMATIC_BACKUP_PREFIX = "passporta-auto-backup-"
+        const val AUTOMATIC_BACKUP_DATE_FORMAT = "yyyyMMdd'T'HHmmssSSS'Z'"
 
         /** Largest accepted single asset file (logo, hero image or original document). */
         const val MAX_ENTRY_BYTES = 64L * 1024 * 1024

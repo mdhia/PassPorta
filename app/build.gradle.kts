@@ -92,6 +92,7 @@ dependencies {
     implementation(libs.material)
     // Per-App-Language-Auswahl in den Einstellungen (AppCompatDelegate.setApplicationLocales).
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.documentfile)
 
     // --- Jetpack Compose (Material 3) ---
     implementation(platform(libs.androidx.compose.bom))
