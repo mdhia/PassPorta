@@ -12,7 +12,8 @@ All data stays on your device inside a local Room database. No account required.
 - **Camera Scanner:** Scan physical cards and paper tickets straight into the app.
 - **Custom Passes & Editing:** Create passes manually or modify existing fields whenever needed.
 - **Document Attachments:** Keep original tickets, PDFs, and images paired with their respective passes.
-- **Local Backups:** Export and import your full pass database as a ZIP file.
+- **Local Backups:** Export and import your full pass database as a ZIP file. Also automatically possible.
+- **Multi-Barcode:** Support multiple barcodes in a single pass.
 
 ## Installation
 
