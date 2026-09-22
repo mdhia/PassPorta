@@ -3,6 +3,8 @@ package org.shadowgrove.passporta.ui.editor
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,6 +40,8 @@ import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Grid4x4
 import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
@@ -69,7 +73,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,6 +83,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -242,6 +249,7 @@ fun PassEditorScreen(
                 onDataChange = viewModel::updateBarcodeData,
                 onTypeChange = viewModel::updateBarcodeType,
                 onAltTextChange = viewModel::updateBarcodeAltText,
+                onMove = viewModel::moveBarcode,
                 onRemove = viewModel::removeBarcode,
                 onAdd = viewModel::addBarcode,
             )
@@ -347,9 +355,13 @@ private fun BarcodeEditor(
     onDataChange: (String, String) -> Unit,
     onTypeChange: (String, BarcodeType) -> Unit,
     onAltTextChange: (String, String) -> Unit,
+    onMove: (String, Int) -> Unit,
     onRemove: (String) -> Unit,
     onAdd: () -> Unit,
 ) {
+    var movedBarcodeId by remember { mutableStateOf<String?>(null) }
+    var reorderAnimationKey by remember { mutableIntStateOf(0) }
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = stringResource(R.string.editor_barcodes_title),
@@ -361,9 +373,21 @@ private fun BarcodeEditor(
                 index = index,
                 barcode = barcode,
                 showRemove = barcodes.size > 1,
+                canMoveDown = index < barcodes.lastIndex,
                 onDataChange = { onDataChange(barcode.id, it) },
                 onTypeChange = { onTypeChange(barcode.id, it) },
                 onAltTextChange = { onAltTextChange(barcode.id, it) },
+                reorderAnimationKey = if (barcode.id == movedBarcodeId) reorderAnimationKey else 0,
+                onMoveUp = {
+                    movedBarcodeId = barcode.id
+                    reorderAnimationKey++
+                    onMove(barcode.id, -1)
+                },
+                onMoveDown = {
+                    movedBarcodeId = barcode.id
+                    reorderAnimationKey++
+                    onMove(barcode.id, 1)
+                },
                 onRemove = { onRemove(barcode.id) },
             )
         }
@@ -384,17 +408,34 @@ private fun BarcodeRow(
     index: Int,
     barcode: EditableBarcode,
     showRemove: Boolean,
+    canMoveDown: Boolean,
+    reorderAnimationKey: Int,
     onDataChange: (String) -> Unit,
     onTypeChange: (BarcodeType) -> Unit,
     onAltTextChange: (String) -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
     onRemove: () -> Unit,
 ) {
+    val reorderScale = remember { Animatable(1f) }
+
+    LaunchedEffect(reorderAnimationKey) {
+        if (reorderAnimationKey != 0) {
+            reorderScale.snapTo(0.98f)
+            reorderScale.animateTo(1f, animationSpec = tween(durationMillis = 180))
+        }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
-            .padding(12.dp),
+            .padding(12.dp)
+            .graphicsLayer {
+                scaleX = reorderScale.value
+                scaleY = reorderScale.value
+            },
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -405,6 +446,18 @@ private fun BarcodeRow(
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = onMoveUp, enabled = index > 0) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowUp,
+                    contentDescription = stringResource(R.string.editor_barcode_move_up),
+                )
+            }
+            IconButton(onClick = onMoveDown, enabled = canMoveDown) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = stringResource(R.string.editor_barcode_move_down),
+                )
+            }
             if (showRemove) {
                 IconButton(onClick = onRemove) {
                     Icon(
@@ -462,7 +515,7 @@ private fun CompactBarcodeTypeSelector(
         modifier = modifier,
     ) {
         OutlinedTextField(
-            value = selected.storageKey,
+            value = selected.editorLabel,
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.editor_field_barcode_type)) },
@@ -475,7 +528,7 @@ private fun CompactBarcodeTypeSelector(
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             BarcodeType.entries.forEach { type ->
                 DropdownMenuItem(
-                    text = { Text(type.storageKey) },
+                    text = { Text(type.editorLabel) },
                     leadingIcon = { BarcodeTypeIcon(type) },
                     onClick = {
                         onSelect(type)
@@ -486,6 +539,10 @@ private fun CompactBarcodeTypeSelector(
         }
     }
 }
+
+/** Compact labels used only by the narrow barcode type selector. */
+private val BarcodeType.editorLabel: String
+    get() = if (this == BarcodeType.DATA_MATRIX) "MATRIX" else storageKey
 
 /**
  * Symbol representing the respective format.

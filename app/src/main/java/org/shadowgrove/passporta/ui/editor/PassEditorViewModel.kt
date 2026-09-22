@@ -354,6 +354,21 @@ class PassEditorViewModel(
     fun updateBarcodeAltText(id: String, value: String) =
         updateBarcode(id) { it.copy(altText = value) }
 
+    /** Moves a barcode by one position; invalid moves leave the current order unchanged. */
+    fun moveBarcode(id: String, direction: Int) = state.update { current ->
+        val index = current.barcodes.indexOfFirst { it.id == id }
+        val target = index + direction
+        if (index < 0 || direction !in -1..1 || target !in current.barcodes.indices) {
+            return@update current
+        }
+
+        current.copy(
+            barcodes = current.barcodes.toMutableList().apply {
+                add(target, removeAt(index))
+            },
+        )
+    }
+
     private fun updateBarcode(id: String, transform: (EditableBarcode) -> EditableBarcode) {
         state.update { current ->
             current.copy(

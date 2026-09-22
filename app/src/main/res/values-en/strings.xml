@@ -9,6 +9,7 @@
     <string name="overview_empty_title">No passes yet</string>
     <string name="overview_empty_message">Open a .pkpass file or share a wallet link with PassPorta.</string>
     <string name="overview_archive">Archive</string>
+    <string name="overview_upcoming">Upcoming</string>
     <string name="overview_archive_empty_title">Archive is empty</string>
     <string name="overview_archive_empty_message">Expired passes collect here automatically.</string>
     <string name="overview_favorite_badge">Favorite</string>
@@ -84,6 +85,8 @@
     <string name="editor_field_barcode_type">Barcode type</string>
     <string name="editor_barcodes_title">Barcodes</string>
     <string name="editor_barcode_number">Barcode %1$d</string>
+    <string name="editor_barcode_move_up">Move barcode up</string>
+    <string name="editor_barcode_move_down">Move barcode down</string>
     <string name="editor_barcode_remove">Remove barcode</string>
     <string name="editor_barcode_add">Add barcode</string>
     <string name="editor_field_barcode_alt_text">Caption (optional)</string>

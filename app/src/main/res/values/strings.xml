@@ -85,6 +85,8 @@
     <string name="editor_field_barcode_type">Barcode-Typ</string>
     <string name="editor_barcodes_title">Barcodes</string>
     <string name="editor_barcode_number">Barcode %1$d</string>
+    <string name="editor_barcode_move_up">Barcode nach oben verschieben</string>
+    <string name="editor_barcode_move_down">Barcode nach unten verschieben</string>
     <string name="editor_barcode_remove">Barcode entfernen</string>
     <string name="editor_barcode_add">Barcode hinzufügen</string>
     <string name="editor_field_barcode_alt_text">Bildunterschrift (optional)</string>
