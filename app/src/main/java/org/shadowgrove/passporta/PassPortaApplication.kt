@@ -11,6 +11,7 @@ import org.shadowgrove.passporta.data.repository.PassRepository
 import org.shadowgrove.passporta.data.scanner.PageRenderer
 import org.shadowgrove.passporta.data.scanner.PassScanner
 import org.shadowgrove.passporta.data.settings.SettingsStore
+import org.shadowgrove.passporta.data.security.BackupPasswordStore
 
 /**
  * Application class acting as a lightweight service locator.
@@ -49,9 +50,12 @@ class PassPortaApplication : Application() {
     /** User settings (color, appearance, behavior). */
     val settingsStore: SettingsStore by lazy { SettingsStore(this) }
 
-    /** Full data export/import (passes, assets and settings) as a single `.zip` archive. */
+    /** Optional backup password, persisted only in Keystore-encrypted form. */
+    val backupPasswordStore: BackupPasswordStore by lazy { BackupPasswordStore(this) }
+
+    /** Full PKPASS-based data export/import (passes and settings) as a single `.zip` archive. */
     val backupManager: BackupManager by lazy {
-        BackupManager(this, passRepository, passAssetStore, settingsStore)
+        BackupManager(this, passRepository, passAssetStore, settingsStore, backupPasswordStore)
     }
 
     val automaticBackupCoordinator: AutomaticBackupCoordinator by lazy {

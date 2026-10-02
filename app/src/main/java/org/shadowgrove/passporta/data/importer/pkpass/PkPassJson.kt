@@ -1,8 +1,12 @@
 package org.shadowgrove.passporta.data.importer.pkpass
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import org.shadowgrove.passporta.data.importer.ImportJson
 import org.shadowgrove.passporta.data.local.entity.PassFieldSection
 
 /**
@@ -13,7 +17,11 @@ import org.shadowgrove.passporta.data.local.entity.PassFieldSection
  */
 @Serializable
 internal data class PkPassJson(
+    // Default values are not encoded by kotlinx.serialization; the key is mandatory for readers.
+    @EncodeDefault
     val formatVersion: Int = 1,
+    val passTypeIdentifier: String? = null,
+    val teamIdentifier: String? = null,
     val serialNumber: String? = null,
     val organizationName: String? = null,
     val description: String? = null,
@@ -45,7 +53,22 @@ internal data class PkPassJson(
     val eventTicket: PkPassStructure? = null,
     val generic: PkPassStructure? = null,
     val storeCard: PkPassStructure? = null,
+
+    /**
+     * Free-form issuer dictionary (Apple spec). Deliberately untyped: other issuers put
+     * arbitrary JSON here, which must never break parsing. PassPorta's own round-trip data lives
+     * below the namespaced [PASSPORTA_USER_INFO_KEY], see [passportaData].
+     */
+    val userInfo: JsonElement? = null,
 ) {
+
+    /** PassPorta round-trip metadata; `null` if absent or not in the expected shape. */
+    val passportaData: PkPassPortaData?
+        get() = (userInfo as? JsonObject)?.get(PASSPORTA_USER_INFO_KEY)?.let { element ->
+            runCatching {
+                ImportJson.decodeFromJsonElement(PkPassPortaData.serializer(), element)
+            }.getOrNull()
+        }
 
     /** The style actually used, along with its fields. */
     val style: PkPassStyle?
@@ -64,7 +87,67 @@ internal data class PkPassJson(
     /** Preferred barcode: first entry from [barcodes], otherwise the legacy field. */
     val preferredBarcode: PkBarcode?
         get() = barcodes.firstOrNull { !it.message.isNullOrBlank() } ?: barcode
+
+    companion object {
+        const val PASSPORTA_USER_INFO_KEY = "passporta"
+    }
 }
+
+/**
+ * Complete PassPorta pass data embedded under `userInfo.passporta`, so a backup restores
+ * everything the standard `pass.json` keys can't express (folder, favorite, all barcode types
+ * and metadata, field sections, timestamps, ...). Other PKPASS readers ignore it.
+ */
+@Serializable
+data class PkPassPortaData(
+    val id: String,
+    val folderName: String,
+    val isFavorite: Boolean = false,
+    val title: String,
+    val subtitle: String? = null,
+    val ownerName: String,
+    val identifier: String? = null,
+    val barcodeData: String,
+    val barcodeType: String,
+    val barcodeAltText: String? = null,
+    val barcodeEcc: String? = null,
+    val barcodeEncoding: String? = null,
+    val barcodes: List<PkPassPortaBarcode> = emptyList(),
+    val backgroundColor: Int,
+    val iconKey: String? = null,
+    val originalFileName: String? = null,
+    val originalMimeType: String? = null,
+    val expirationDate: Long? = null,
+    val startDate: Long? = null,
+    val location: String? = null,
+    val locationLatitude: Double? = null,
+    val locationLongitude: Double? = null,
+    val source: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val fields: List<PkPassPortaField> = emptyList(),
+    val logoEntry: String? = null,
+    val heroEntry: String? = null,
+    val originalEntry: String? = null,
+)
+
+@Serializable
+data class PkPassPortaBarcode(
+    val barcodeData: String,
+    val barcodeType: String,
+    val barcodeAltText: String? = null,
+    val barcodeEcc: String? = null,
+    val barcodeEncoding: String? = null,
+    val position: Int = 0,
+)
+
+@Serializable
+data class PkPassPortaField(
+    val label: String? = null,
+    val value: String,
+    val section: String,
+    val position: Int = 0,
+)
 
 @Serializable
 internal data class PkBarcode(

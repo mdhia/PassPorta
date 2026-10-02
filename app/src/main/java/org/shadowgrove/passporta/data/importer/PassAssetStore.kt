@@ -52,7 +52,9 @@ class PassAssetStore(private val rootDir: File) {
         val file = File(rootDir, path)
         val canonicalRoot = runCatching { rootDir.canonicalPath }.getOrNull() ?: return null
         val canonicalFile = runCatching { file.canonicalPath }.getOrNull() ?: return null
-        if (!canonicalFile.startsWith(canonicalRoot)) return null
+        if (canonicalFile != canonicalRoot &&
+            !canonicalFile.startsWith("$canonicalRoot${File.separator}")
+        ) return null
         return file.takeIf { it.isFile }
     }
 
@@ -66,9 +68,19 @@ class PassAssetStore(private val rootDir: File) {
      * @return [relativePath] on success, or `null` if the path is unsafe or writing failed.
      */
     fun restore(relativePath: String, bytes: ByteArray): String? {
-        val path = relativePath.takeIf { it.isNotBlank() && !it.contains("..") } ?: return null
+        val path = relativePath.takeIf {
+            it.isNotBlank() &&
+                !it.startsWith('/') &&
+                !it.startsWith('\\') &&
+                !it.contains('\\') &&
+                it.split('/').none { segment -> segment == ".." }
+        } ?: return null
         val target = File(rootDir, path)
         val canonicalRoot = runCatching { rootDir.canonicalPath }.getOrNull() ?: return null
+        val canonicalTarget = runCatching { target.canonicalPath }.getOrNull() ?: return null
+        if (canonicalTarget != canonicalRoot &&
+            !canonicalTarget.startsWith("$canonicalRoot${File.separator}")
+        ) return null
 
         return runCatching {
             target.parentFile?.mkdirs()

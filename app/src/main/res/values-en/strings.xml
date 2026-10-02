@@ -143,7 +143,7 @@
     <!-- Backup -->
     <string name="settings_section_backup">Backup</string>
     <string name="settings_backup_export">Export data</string>
-    <string name="settings_backup_export_hint">Save all passes, images and settings as a ZIP file.</string>
+    <string name="settings_backup_export_hint">Save all passes as PKPASS files and settings as a ZIP file; optionally encrypted.</string>
     <string name="settings_backup_import">Import data</string>
     <string name="settings_backup_import_hint">Restore a previously exported ZIP file. Existing passes with the same id are replaced.</string>
     <string name="settings_backup_export_success">%1$d passes exported.</string>
@@ -151,6 +151,22 @@
     <string name="settings_backup_error_write_failed">The backup could not be written.</string>
     <string name="settings_backup_error_read_failed">The file could not be read.</string>
     <string name="settings_backup_error_invalid_file">This is not a valid PassPorta backup.</string>
+    <string name="settings_backup_error_password_required">This backup is password-protected.</string>
+    <string name="settings_backup_error_invalid_password">Wrong password or damaged backup.</string>
+    <string name="settings_backup_error_password_unavailable">The backup password is no longer available on this device. No unencrypted backup was created – please set the password again.</string>
+    <string name="settings_backup_import_password_title">Enter backup password</string>
+    <string name="settings_backup_password">Backup password</string>
+    <string name="settings_backup_password_enabled">Manual and automatic backups are encrypted.</string>
+    <string name="settings_backup_password_disabled">Backups are created without password protection.</string>
+    <string name="settings_backup_password_dialog_title">Set backup password</string>
+    <string name="settings_backup_password_hint">The password is never stored in plain text. Without it, a backup cannot be restored.</string>
+    <string name="settings_backup_password_label">Password</string>
+    <string name="settings_backup_password_confirm_label">Repeat password</string>
+    <string name="settings_backup_password_too_short">The password must contain at least 12 characters.</string>
+    <string name="settings_backup_password_mismatch">The passwords do not match.</string>
+    <string name="settings_backup_password_save">Save</string>
+    <string name="settings_backup_password_remove">Remove protection</string>
+    <string name="cancel">Cancel</string>
     <string name="settings_backup_folder">Automatic backup folder</string>
     <string name="settings_backup_folder_none">No folder selected – automatic backups are disabled.</string>
     <string name="settings_backup_folder_choose">Choose</string>

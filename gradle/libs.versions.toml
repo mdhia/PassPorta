@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.3"
+agp = "9.4.1"
 # Explizites Kotlin-Plugin statt AGP-Built-in-Kotlin: die aktuellen AndroidX-/Compose-Artefakte
 # tragen Kotlin-2.4-Metadaten, die der eingebaute 2.2.x-Compiler nicht lesen kann.
 kotlin = "2.4.10"
@@ -17,6 +17,7 @@ lifecycle = "2.11.0"
 navigation = "2.10.0"
 palette = "1.0.0"
 room = "2.8.4"
+sqlcipher = "4.6.1"
 exifinterface = "1.4.1"
 
 # Offline-Feature-Libraries
@@ -66,6 +67,7 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+androidx-sqlcipher = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
 
 # --- Farben, Bilder, Barcodes, Offline-ML, JSON ---
 androidx-palette-ktx = { group = "androidx.palette", name = "palette-ktx", version.ref = "palette" }

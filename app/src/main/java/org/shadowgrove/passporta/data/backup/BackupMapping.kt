@@ -7,6 +7,7 @@ import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldSection
 import org.shadowgrove.passporta.data.local.entity.PassSource
 import org.shadowgrove.passporta.data.local.model.PassWithFields
+import org.shadowgrove.passporta.data.importer.pkpass.PkPassPortaData
 import org.shadowgrove.passporta.data.settings.AppSettings
 import org.shadowgrove.passporta.data.settings.AppThemeColor
 import org.shadowgrove.passporta.data.settings.AppThemeMode
@@ -120,6 +121,64 @@ internal fun BackupField.toPassFieldEntity(passId: String): PassFieldEntity = Pa
     section = PassFieldSection.fromKey(section),
     position = position,
 )
+
+internal fun PkPassPortaData.toPassEntity(
+    logoPath: String?,
+    heroImagePath: String?,
+    originalFilePath: String?,
+): PassEntity = PassEntity(
+    id = id,
+    folderName = folderName,
+    isFavorite = isFavorite,
+    title = title,
+    subtitle = subtitle,
+    ownerName = ownerName,
+    identifier = identifier,
+    barcodeData = barcodeData,
+    barcodeType = BarcodeType.fromKey(barcodeType),
+    barcodeAltText = barcodeAltText,
+    barcodeEcc = barcodeEcc,
+    barcodeEncoding = barcodeEncoding,
+    backgroundColor = backgroundColor,
+    logoPath = logoPath,
+    iconKey = iconKey,
+    heroImagePath = heroImagePath,
+    originalFilePath = originalFilePath,
+    originalFileName = originalFileName,
+    originalMimeType = originalMimeType,
+    expirationDate = expirationDate,
+    startDate = startDate,
+    location = location,
+    locationLatitude = locationLatitude,
+    locationLongitude = locationLongitude,
+    source = PassSource.fromKey(source),
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+internal fun PkPassPortaData.toFields(passId: String): List<PassFieldEntity> =
+    fields.sortedBy { it.position }.map { field ->
+        PassFieldEntity(
+            passId = passId,
+            label = field.label,
+            value = field.value,
+            section = PassFieldSection.fromKey(field.section),
+            position = field.position,
+        )
+    }
+
+internal fun PkPassPortaData.toBarcodes(passId: String): List<PassBarcodeEntity> =
+    barcodes.sortedBy { it.position }.map { barcode ->
+        PassBarcodeEntity(
+            passId = passId,
+            barcodeData = barcode.barcodeData,
+            barcodeType = BarcodeType.fromKey(barcode.barcodeType),
+            barcodeAltText = barcode.barcodeAltText,
+            barcodeEcc = barcode.barcodeEcc,
+            barcodeEncoding = barcode.barcodeEncoding,
+            position = barcode.position,
+        )
+    }
 
 internal fun AppSettings.toBackupSettings(): BackupSettings = BackupSettings(
     themeColor = themeColor.key,

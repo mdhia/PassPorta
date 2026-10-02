@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -61,11 +62,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.shadowgrove.passporta.R
 import org.shadowgrove.passporta.data.settings.AppThemeColor
 import org.shadowgrove.passporta.data.settings.AppThemeMode
+import org.shadowgrove.passporta.data.backup.BackupFailure
+import org.shadowgrove.passporta.data.backup.BackupResult
+import org.shadowgrove.passporta.data.security.BackupPasswordStore
 import org.shadowgrove.passporta.ui.model.PassPalette
 import org.shadowgrove.passporta.ui.toUserMessage
 import androidx.documentfile.provider.DocumentFile
@@ -104,15 +109,25 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
+    val backupPasswordConfigured by viewModel.backupPasswordConfigured.collectAsStateWithLifecycle()
 
     // Not part of `settings`: the language is governed by AppCompatDelegate, not by our own
     // SharedPreferences store (see [AppLanguage]). A locale change recreates the activity almost
     // immediately, so plain `remember` is enough to reflect the choice until then.
     var language by remember { mutableStateOf(AppLanguage.current()) }
+    var showBackupPasswordDialog by remember { mutableStateOf(false) }
+    var backupPassword by remember { mutableStateOf("") }
+    var backupPasswordConfirmation by remember { mutableStateOf("") }
+    var backupPasswordError by remember { mutableStateOf<String?>(null) }
+    var importPasswordUri by remember { mutableStateOf<Uri?>(null) }
+    var importPassword by remember { mutableStateOf("") }
+    var showImportPasswordDialog by remember { mutableStateOf(false) }
 
     val resources = LocalResources.current
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val backupPasswordTooShortMessage = stringResource(R.string.settings_backup_password_too_short)
+    val backupPasswordMismatchMessage = stringResource(R.string.settings_backup_password_mismatch)
 
     val automaticBackupFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
@@ -133,7 +148,18 @@ fun SettingsScreen(
 
     LaunchedEffect(viewModel, resources) {
         viewModel.backupResults.collect { result ->
-            snackbarHostState.showSnackbar(result.toUserMessage(resources))
+            val reason = (result as? BackupResult.Failure)?.reason
+            val needsPassword = importPasswordUri != null &&
+                (reason == BackupFailure.PASSWORD_REQUIRED || reason == BackupFailure.INVALID_PASSWORD)
+            if (needsPassword) {
+                importPassword = ""
+                showImportPasswordDialog = true
+            }
+            if (result is BackupResult.ImportSuccess) importPasswordUri = null
+            // "Password required" is answered by the dialog itself; everything else is reported.
+            if (reason != BackupFailure.PASSWORD_REQUIRED || !needsPassword) {
+                snackbarHostState.showSnackbar(result.toUserMessage(resources))
+            }
         }
     }
 
@@ -143,7 +169,13 @@ fun SettingsScreen(
 
     val importBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
-    ) { uri -> uri?.let(viewModel::importBackup) }
+    ) { uri ->
+        if (uri != null) {
+            importPasswordUri = uri
+            importPassword = ""
+            viewModel.importBackup(uri)
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -318,6 +350,27 @@ fun SettingsScreen(
             )
 
             ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_backup_password)) },
+                supportingContent = {
+                    Text(
+                        stringResource(
+                            if (backupPasswordConfigured) {
+                                R.string.settings_backup_password_enabled
+                            } else {
+                                R.string.settings_backup_password_disabled
+                            },
+                        ),
+                    )
+                },
+                modifier = Modifier.clickable {
+                    backupPassword = ""
+                    backupPasswordConfirmation = ""
+                    backupPasswordError = null
+                    showBackupPasswordDialog = true
+                },
+            )
+
+            ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_backup_folder)) },
                 supportingContent = {
                     Text(
@@ -379,6 +432,115 @@ fun SettingsScreen(
                 supportingContent = { Text(stringResource(R.string.settings_offline_hint)) },
             )
         }
+    }
+
+    if (showBackupPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackupPasswordDialog = false },
+            title = { Text(stringResource(R.string.settings_backup_password_dialog_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.settings_backup_password_hint))
+                    OutlinedTextField(
+                        value = backupPassword,
+                        onValueChange = {
+                            backupPassword = it
+                            backupPasswordError = null
+                        },
+                        label = { Text(stringResource(R.string.settings_backup_password_label)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = backupPasswordConfirmation,
+                        onValueChange = {
+                            backupPasswordConfirmation = it
+                            backupPasswordError = null
+                        },
+                        label = { Text(stringResource(R.string.settings_backup_password_confirm_label)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                    )
+                    backupPasswordError?.let { error ->
+                        Text(error, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    when {
+                        backupPassword.length < BackupPasswordStore.MIN_PASSWORD_LENGTH ->
+                            backupPasswordError = backupPasswordTooShortMessage
+                        backupPassword != backupPasswordConfirmation ->
+                            backupPasswordError = backupPasswordMismatchMessage
+                        else -> {
+                            viewModel.setBackupPassword(backupPassword.toCharArray())
+                            backupPassword = ""
+                            backupPasswordConfirmation = ""
+                            showBackupPasswordDialog = false
+                        }
+                    }
+                }) {
+                    Text(stringResource(R.string.settings_backup_password_save))
+                }
+            },
+            dismissButton = {
+                Row {
+                    if (backupPasswordConfigured) {
+                        TextButton(onClick = {
+                            viewModel.clearBackupPassword()
+                            backupPassword = ""
+                            backupPasswordConfirmation = ""
+                            showBackupPasswordDialog = false
+                        }) {
+                            Text(stringResource(R.string.settings_backup_password_remove))
+                        }
+                    }
+                    TextButton(onClick = { showBackupPasswordDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            },
+        )
+    }
+
+    if (showImportPasswordDialog && importPasswordUri != null) {
+        val dismissImport = {
+            showImportPasswordDialog = false
+            importPassword = ""
+            importPasswordUri = null
+        }
+        AlertDialog(
+            onDismissRequest = dismissImport,
+            title = { Text(stringResource(R.string.settings_backup_import_password_title)) },
+            text = {
+                OutlinedTextField(
+                    value = importPassword,
+                    onValueChange = { importPassword = it },
+                    label = { Text(stringResource(R.string.settings_backup_password_label)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = importPassword.isNotEmpty(),
+                    onClick = {
+                        val uri = importPasswordUri ?: return@TextButton
+                        showImportPasswordDialog = false
+                        viewModel.importBackup(uri, importPassword.toCharArray())
+                        importPassword = ""
+                    },
+                ) {
+                    Text(stringResource(R.string.settings_backup_import))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = dismissImport) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 

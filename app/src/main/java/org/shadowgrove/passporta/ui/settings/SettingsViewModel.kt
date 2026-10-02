@@ -1,6 +1,7 @@
 package org.shadowgrove.passporta.ui.settings
 
 import android.net.Uri
+import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.ViewModel
@@ -8,14 +9,19 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.shadowgrove.passporta.data.backup.BackupFailure
 import org.shadowgrove.passporta.data.backup.BackupManager
 import org.shadowgrove.passporta.data.backup.BackupResult
 import org.shadowgrove.passporta.data.local.entity.PassEntity
@@ -24,6 +30,7 @@ import org.shadowgrove.passporta.data.settings.AppSettings
 import org.shadowgrove.passporta.data.settings.AppThemeColor
 import org.shadowgrove.passporta.data.settings.AppThemeMode
 import org.shadowgrove.passporta.data.settings.SettingsStore
+import org.shadowgrove.passporta.data.security.BackupPasswordStore
 import org.shadowgrove.passporta.ui.passPortaApplication
 
 /**
@@ -62,6 +69,7 @@ class SettingsViewModel(
     private val store: SettingsStore,
     private val backupManager: BackupManager,
     private val passRepository: PassRepository,
+    private val backupPasswordStore: BackupPasswordStore,
 ) : ViewModel() {
 
     val settings: StateFlow<AppSettings> = store.settings.stateIn(
@@ -90,6 +98,10 @@ class SettingsViewModel(
     private val backupResultChannel = Channel<BackupResult>(Channel.BUFFERED)
     val backupResults: Flow<BackupResult> = backupResultChannel.receiveAsFlow()
 
+    /** Whether backups are password-protected; reading it needs no Keystore operation. */
+    private val _backupPasswordConfigured = MutableStateFlow(backupPasswordStore.isConfigured())
+    val backupPasswordConfigured: StateFlow<Boolean> = _backupPasswordConfigured.asStateFlow()
+
     fun setThemeColor(value: AppThemeColor) = store.setThemeColor(value)
 
     fun setThemeMode(value: AppThemeMode) = store.setThemeMode(value)
@@ -111,6 +123,31 @@ class SettingsViewModel(
     fun setRollingBackupCount(value: Int) = store.setRollingBackupCount(value)
 
     /**
+     * Stores the backup password (Keystore operation, hence off the main thread).
+     * The array is wiped afterwards.
+     */
+    fun setBackupPassword(password: CharArray) {
+        viewModelScope.launch {
+            val stored = withContext(Dispatchers.IO) {
+                runCatching { backupPasswordStore.set(password) }
+                    .onFailure { Log.w(TAG, "Backup password could not be stored", it) }
+                    .isSuccess
+            }
+            _backupPasswordConfigured.value = backupPasswordStore.isConfigured()
+            if (!stored) {
+                backupResultChannel.send(BackupResult.Failure(BackupFailure.PASSWORD_UNAVAILABLE))
+            }
+        }
+    }
+
+    fun clearBackupPassword() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { backupPasswordStore.clear() }
+            _backupPasswordConfigured.value = backupPasswordStore.isConfigured()
+        }
+    }
+
+    /**
      * Switches the app's display language.
      *
      * Triggers an immediate locale change; on an `AppCompatActivity` this automatically
@@ -122,28 +159,43 @@ class SettingsViewModel(
         AppCompatDelegate.setApplicationLocales(locales)
     }
 
-    /** Exports all passes, assets and settings as a `.zip` archive at [destination]. */
+    /** Exports all passes and settings as a `.zip` archive at [destination]. */
     fun exportBackup(destination: Uri) {
         viewModelScope.launch {
             backupResultChannel.send(backupManager.export(destination))
         }
     }
 
-    /** Restores passes, assets and settings from a previously exported archive at [source]. */
-    fun importBackup(source: Uri) {
+    /**
+     * Restores passes and settings from a previously exported archive at [source].
+     *
+     * @param password password for an encrypted backup; `null` tries the stored backup
+     *   password. The array is wiped afterwards.
+     */
+    fun importBackup(source: Uri, password: CharArray? = null) {
         viewModelScope.launch {
-            backupResultChannel.send(backupManager.import(source))
+            try {
+                backupResultChannel.send(backupManager.import(source, password))
+            } finally {
+                password?.fill('\u0000')
+            }
         }
     }
 
     companion object {
 
+        private const val TAG = "SettingsViewModel"
         private const val STOP_TIMEOUT_MILLIS = 5_000L
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = passPortaApplication()
-                SettingsViewModel(app.settingsStore, app.backupManager, app.passRepository)
+                SettingsViewModel(
+                    app.settingsStore,
+                    app.backupManager,
+                    app.passRepository,
+                    app.backupPasswordStore,
+                )
             }
         }
     }

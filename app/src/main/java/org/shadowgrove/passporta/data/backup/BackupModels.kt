@@ -78,11 +78,7 @@ internal data class BackupSettings(
     val rollingBackupCount: Int = 5,
 )
 
-/**
- * Top-level content of a backup archive's `backup.json` entry.
- *
- * @param formatVersion lets a later app version detect and, if needed, migrate older backups.
- */
+/** Legacy top-level content of an older backup archive's `backup.json` entry. */
 @Serializable
 internal data class BackupManifest(
     val formatVersion: Int = CURRENT_FORMAT_VERSION,

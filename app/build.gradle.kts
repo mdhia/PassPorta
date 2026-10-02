@@ -112,6 +112,7 @@ dependencies {
     // --- Room (lokale, offline Persistenz) ---
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.sqlcipher)
     ksp(libs.androidx.room.compiler)
 
     // --- Farb-Extraktion / Bilder / Barcodes / Offline-ML / JSON ---

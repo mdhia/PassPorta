@@ -15,14 +15,25 @@ import java.util.zip.ZipInputStream
  * A pass is typically well under 1 MB, so reading it in one go is unproblematic and avoids
  * temporary files.
  *
- * Security: entry names are checked against path traversal ("Zip Slip"); [MAX_ENTRY_BYTES] and
- * [MAX_TOTAL_BYTES] also limit the damage from zip bombs.
+ * Security: entry names are checked against path traversal ("Zip Slip"); [Limits] also limits
+ * the damage from zip bombs.
  */
 internal class PkPassArchive private constructor(
-    private val entries: Map<String, ByteArray>,
+    internal val entries: Map<String, ByteArray>,
 ) {
 
     val entryNames: Set<String> get() = entries.keys
+
+    /** Size limits against zip bombs. */
+    internal data class Limits(val maxEntryBytes: Long, val maxTotalBytes: Long) {
+        companion object {
+            /** Wallet passes only contain JSON and small images. */
+            val WALLET = Limits(maxEntryBytes = 8L * 1024 * 1024, maxTotalBytes = 32L * 1024 * 1024)
+
+            /** PassPorta backups additionally embed the original document of a pass. */
+            val BACKUP = Limits(maxEntryBytes = 64L * 1024 * 1024, maxTotalBytes = 96L * 1024 * 1024)
+        }
+    }
 
     /** Entry by exact name (case is ignored). */
     operator fun get(name: String): ByteArray? = entries[name.lowercase()]
@@ -73,19 +84,13 @@ internal class PkPassArchive private constructor(
         const val MANIFEST_ENTRY = "manifest.json"
         const val PASS_ENTRY = "pass.json"
 
-        /** Largest accepted single image or JSON. */
-        private const val MAX_ENTRY_BYTES = 8L * 1024 * 1024
-
-        /** Upper limit for the entire unpacked archive. */
-        private const val MAX_TOTAL_BYTES = 32L * 1024 * 1024
-
         private const val COPY_BUFFER_BYTES = 16 * 1024
 
         /**
          * Reads the archive from [input]. The stream is fully consumed but not closed - the
          * caller takes care of that (`use { }`).
          */
-        fun read(input: InputStream): PkPassArchive {
+        fun read(input: InputStream, limits: Limits = Limits.WALLET): PkPassArchive {
             val result = mutableMapOf<String, ByteArray>()
             var totalBytes = 0L
 
@@ -94,10 +99,10 @@ internal class PkPassArchive private constructor(
             while (entry != null) {
                 val name = entry.name
                 if (!entry.isDirectory && isSafeEntryName(name)) {
-                    val bytes = zip.readLimited(MAX_ENTRY_BYTES)
+                    val bytes = zip.readLimited(limits.maxEntryBytes)
                     if (bytes != null) {
                         totalBytes += bytes.size
-                        require(totalBytes <= MAX_TOTAL_BYTES) {
+                        require(totalBytes <= limits.maxTotalBytes) {
                             "Archive exceeds the size limit"
                         }
                         result[name.lowercase()] = bytes

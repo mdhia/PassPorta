@@ -21,6 +21,12 @@ data class PkPassImport(
 
     /** `true` if all checksums from `manifest.json` match. */
     val integrityVerified: Boolean,
+
+    /** Archive entries needed by PassPorta backup restoration. */
+    val assets: Map<String, ByteArray> = emptyMap(),
+
+    /** Optional app-specific metadata embedded under `userInfo.passporta`. */
+    val passportaData: PkPassPortaData? = null,
 )
 
 /**
@@ -29,7 +35,11 @@ data class PkPassImport(
  * Deliberately without Android dependencies, so the entire mapping logic can be verified in
  * JVM unit tests.
  */
-class PkPassParser {
+class PkPassParser internal constructor(
+    private val limits: PkPassArchive.Limits,
+) {
+
+    constructor() : this(PkPassArchive.Limits.WALLET)
 
     /**
      * @param input data stream of the archive; is read but not closed.
@@ -37,7 +47,7 @@ class PkPassParser {
      * @throws PassImportException if the archive is unusable or contains no barcode.
      */
     fun parse(input: InputStream, preferredLanguage: String? = null): PkPassImport {
-        val archive = runCatching { PkPassArchive.read(input) }.getOrElse { error ->
+        val archive = runCatching { PkPassArchive.read(input, limits) }.getOrElse { error ->
             throw PassImportException(ImportFailure.INVALID_PKPASS, "Archive unreadable", error)
         }
 
@@ -84,7 +94,12 @@ class PkPassParser {
             externalId = pass.serialNumber?.takeIf { it.isNotBlank() },
             barcodes = barcodeDrafts,
         )
-        return PkPassImport(draft = draft, integrityVerified = archive.verifyIntegrity())
+        return PkPassImport(
+            draft = draft,
+            integrityVerified = archive.verifyIntegrity(),
+            assets = archive.entries,
+            passportaData = pass.passportaData,
+        )
     }
 
     /**

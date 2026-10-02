@@ -18,6 +18,9 @@ fun BackupResult.toUserMessage(resources: Resources): String = when (this) {
             BackupFailure.WRITE_FAILED -> R.string.settings_backup_error_write_failed
             BackupFailure.READ_FAILED -> R.string.settings_backup_error_read_failed
             BackupFailure.INVALID_FILE -> R.string.settings_backup_error_invalid_file
+            BackupFailure.PASSWORD_REQUIRED -> R.string.settings_backup_error_password_required
+            BackupFailure.INVALID_PASSWORD -> R.string.settings_backup_error_invalid_password
+            BackupFailure.PASSWORD_UNAVAILABLE -> R.string.settings_backup_error_password_unavailable
         },
     )
 }

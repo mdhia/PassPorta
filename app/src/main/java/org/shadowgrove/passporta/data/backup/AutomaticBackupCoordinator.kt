@@ -5,11 +5,13 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.shadowgrove.passporta.data.settings.SettingsStore
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -23,22 +25,32 @@ class AutomaticBackupCoordinator(
     private val backupMutex = Mutex()
     private var pendingJob: Job? = null
 
-    /** Coalesces rapid successive mutations into one backup of the final state. */
+    /**
+     * Coalesces rapid successive mutations into one backup of the final state.
+     *
+     * Only the debounce wait is cancelled by a newer request - a backup that already started
+     * always runs to completion, so no half-written file is ever left in the backup folder.
+     */
+    @Synchronized
     fun requestBackup() {
         pendingJob?.cancel()
         pendingJob = scope.launch {
             delay(DEBOUNCE_MILLIS.milliseconds)
             backupMutex.withLock {
-                val settings = settingsStore.current
-                val folderUri = settings.automaticBackupFolderUri
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let(Uri::parse)
-                    ?: return@withLock
-                when (val result = backupManager.exportAutomatic(folderUri, settings.rollingBackupCount)) {
-                    is BackupResult.ExportSuccess -> Unit
-                    else -> Log.w(TAG, "Automatic backup failed: $result")
-                }
+                withContext(NonCancellable) { runBackup() }
             }
+        }
+    }
+
+    private suspend fun runBackup() {
+        val settings = settingsStore.current
+        val folderUri = settings.automaticBackupFolderUri
+            ?.takeIf { it.isNotBlank() }
+            ?.let(Uri::parse)
+            ?: return
+        when (val result = backupManager.exportAutomatic(folderUri, settings.rollingBackupCount)) {
+            is BackupResult.ExportSuccess -> Unit
+            else -> Log.w(TAG, "Automatic backup failed: $result")
         }
     }
 

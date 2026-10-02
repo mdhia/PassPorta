@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+import org.shadowgrove.passporta.data.security.DatabaseKeyStore
 import org.shadowgrove.passporta.data.local.dao.PassDao
 import org.shadowgrove.passporta.data.local.entity.PassEntity
 import org.shadowgrove.passporta.data.local.entity.PassFieldEntity
@@ -38,11 +40,22 @@ abstract class PassDatabase : RoomDatabase() {
                 instance ?: create(context.applicationContext).also { instance = it }
             }
 
-        private fun create(context: Context): PassDatabase =
-            Room.databaseBuilder(context, PassDatabase::class.java, DATABASE_NAME)
+        private fun create(context: Context): PassDatabase {
+            SqlCipherDatabase.ensureLibraryLoaded()
+            val key = DatabaseKeyStore(context).getOrCreate()
+            val keySpec = try {
+                SqlCipherDatabase.rawKeySpec(key)
+            } finally {
+                key.fill(0)
+            }
+            SqlCipherDatabase.prepare(context.getDatabasePath(DATABASE_NAME), keySpec)
+            return Room.databaseBuilder(context, PassDatabase::class.java, DATABASE_NAME)
                 // Deliberately no destructive migration: pass data cannot be restored, so
                 // every schema change is migrated explicitly.
                 .addMigrations(*PassMigrations.ALL)
+                // SQLCipher keeps its own copy of the key spec for re-opening connections.
+                .openHelperFactory(SupportOpenHelperFactory(keySpec))
                 .build()
+        }
     }
 }
