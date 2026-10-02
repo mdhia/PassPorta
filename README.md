@@ -12,6 +12,7 @@ All data stays on your device inside a local Room database. No account required.
 - **Camera Scanner:** Scan physical cards and paper tickets straight into the app.
 - **Custom Passes & Editing:** Create passes manually or modify existing fields whenever needed.
 - **Document Attachments:** Keep original tickets, PDFs, and images paired with their respective passes.
+- **Multi-Barcode:** Support multiple barcodes in a single pass.
 - **Local Backups:** Export and import ZIP archives containing individual PKPASS files and settings.
 - **Encrypted Backups:** Optional password protection for manual and auto backups. Encrypted via AES-256-GCM.
 
