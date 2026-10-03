@@ -5,6 +5,23 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.style.TextOverflow
+import org.shadowgrove.passporta.data.importer.CameraCapture
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -120,6 +137,28 @@ fun PassDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showZoom by remember { mutableStateOf(false) }
     var selectedBarcodeIndex by remember(passId) { mutableStateOf(0) }
+    var showAddBarcodeSheet by remember { mutableStateOf(false) }
+    var captionCandidate by remember { mutableStateOf<BarcodeCandidate?>(null) }
+    val barcodeSearch by viewModel.barcodeSearch.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    val pickPkPass = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::findBarcodesInPkPass)
+    }
+    val pickScanSource = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::findBarcodesInImage)
+    }
+    var captureTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val target = captureTarget?.let(Uri::parse)
+        captureTarget = null
+        when {
+            !success || target == null -> Unit
+            !CameraCapture.hasContent(context, target) ->
+                Toast.makeText(context, R.string.camera_capture_failed, Toast.LENGTH_SHORT).show()
+            else -> viewModel.findBarcodesInImage(target)
+        }
+    }
 
     // Setting "open barcode immediately": applies once, as soon as the pass is loaded.
     // Deliberately tied to the pass id and not to `Unit` - otherwise the effect would stay
@@ -152,6 +191,12 @@ fun PassDetailScreen(
                 },
                 actions = {
                     if (pass != null) {
+                        IconButton(onClick = { showAddBarcodeSheet = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = stringResource(R.string.detail_add_barcode),
+                            )
+                        }
                         IconButton(onClick = viewModel::toggleFavorite) {
                             Icon(
                                 imageVector = if (pass.isFavorite) {
@@ -205,6 +250,54 @@ fun PassDetailScreen(
             pass = pass,
             initialBarcodeIndex = selectedBarcodeIndex,
             onDismiss = { showZoom = false },
+        )
+    }
+
+    if (showAddBarcodeSheet) {
+        AddBarcodeSourceSheet(
+            onDismiss = { showAddBarcodeSheet = false },
+            onImportPkPass = {
+                showAddBarcodeSheet = false
+                pickPkPass.launch(PKPASS_MIME_TYPES)
+            },
+            onCapturePhoto = {
+                showAddBarcodeSheet = false
+                val uri = CameraCapture.createTargetUri(context)
+                if (uri == null) {
+                    Toast.makeText(context, R.string.camera_unavailable, Toast.LENGTH_SHORT).show()
+                } else {
+                    captureTarget = uri.toString()
+                    try {
+                        takePhoto.launch(uri)
+                    } catch (_: ActivityNotFoundException) {
+                        captureTarget = null
+                        Toast.makeText(context, R.string.camera_unavailable, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onScanSource = {
+                showAddBarcodeSheet = false
+                pickScanSource.launch(SCAN_MIME_TYPES)
+            },
+        )
+    }
+
+    barcodeSearch?.let { search ->
+        FoundBarcodesDialog(
+            state = search,
+            onAdd = { captionCandidate = it },
+            onDone = viewModel::closeBarcodeSearch,
+        )
+    }
+
+    captionCandidate?.let { candidate ->
+        BarcodeCaptionDialog(
+            candidate = candidate,
+            onConfirm = { caption ->
+                viewModel.addBarcode(candidate.copy(altText = caption.trim().ifBlank { null }))
+                captionCandidate = null
+            },
+            onDismiss = { captionCandidate = null },
         )
     }
 
@@ -347,11 +440,11 @@ private fun DateRangeRow(pass: PassUi, modifier: Modifier = Modifier) {
     val text = when {
         showStart && showEnd -> stringResource(
             R.string.detail_valid_range,
-            formatDate(pass.startDate!!),
-            formatDate(pass.expirationDate!!),
+            formatDate(pass.startDate),
+            formatDate(pass.expirationDate),
         )
 
-        showStart -> stringResource(R.string.detail_valid_from, formatDate(pass.startDate!!))
+        showStart -> stringResource(R.string.detail_valid_from, formatDate(pass.startDate))
 
         else -> stringResource(
             if (pass.isExpired) R.string.detail_expired_on else R.string.detail_valid_until,
@@ -541,6 +634,167 @@ private fun BarcodeDots(
             )
         }
     }
+}
+
+private val PKPASS_MIME_TYPES = arrayOf(
+    "application/vnd.apple.pkpass",
+    "application/vnd.apple.pkpasses",
+    "application/zip",
+    "application/octet-stream",
+)
+private val SCAN_MIME_TYPES = arrayOf("image/*", "application/pdf")
+
+/** Source selection for additional barcodes - same sources as on the overview. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddBarcodeSourceSheet(
+    onDismiss: () -> Unit,
+    onImportPkPass: () -> Unit,
+    onCapturePhoto: () -> Unit,
+    onScanSource: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            Text(
+                text = stringResource(R.string.add_barcode_sheet_title),
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.add_pkpass_title)) },
+                leadingContent = { Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onImportPkPass),
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.add_camera_title)) },
+                leadingContent = { Icon(Icons.Default.PhotoCamera, contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onCapturePhoto),
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.add_scan_title)) },
+                leadingContent = { Icon(Icons.Default.DocumentScanner, contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onScanSource),
+            )
+        }
+    }
+}
+
+/** List of found barcodes; each can be added individually, "Done" closes the dialog. */
+@Composable
+private fun FoundBarcodesDialog(
+    state: BarcodeSearchState,
+    onAdd: (BarcodeCandidate) -> Unit,
+    onDone: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDone,
+        title = { Text(stringResource(R.string.detail_found_barcodes_title)) },
+        text = {
+            when {
+                state.isLoading -> Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                ) { CircularProgressIndicator() }
+
+                state.candidates.isEmpty() -> Text(
+                    stringResource(
+                        if (state.failed) {
+                            R.string.detail_found_barcodes_failed
+                        } else {
+                            R.string.detail_found_barcodes_empty
+                        },
+                    ),
+                )
+
+                else -> LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                    items(state.candidates, key = { "${it.type}:${it.data}" }) { candidate ->
+                        ListItem(
+                            overlineContent = { Text(candidate.type.name) },
+                            headlineContent = {
+                                Text(
+                                    text = candidate.data,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            supportingContent = candidate.altText?.takeIf { it.isNotBlank() }?.let { alt ->
+                                { Text(alt) }
+                            },
+                            trailingContent = {
+                                IconButton(
+                                    onClick = { onAdd(candidate) },
+                                    enabled = !candidate.added,
+                                ) {
+                                    Icon(
+                                        imageVector = if (candidate.added) Icons.Default.Check else Icons.Default.Add,
+                                        contentDescription = stringResource(
+                                            if (candidate.added) {
+                                                R.string.detail_barcode_added
+                                            } else {
+                                                R.string.detail_add_barcode
+                                            },
+                                        ),
+                                    )
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDone) {
+                Text(stringResource(R.string.detail_found_barcodes_done))
+            }
+        },
+    )
+}
+
+/** Asks for the caption shown below the new barcode; a detected caption is prefilled. */
+@Composable
+private fun BarcodeCaptionDialog(
+    candidate: BarcodeCandidate,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var caption by remember(candidate) { mutableStateOf(candidate.altText.orEmpty()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.detail_barcode_caption_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "${candidate.type.name} · ${candidate.data}",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                OutlinedTextField(
+                    value = caption,
+                    onValueChange = { caption = it },
+                    label = { Text(stringResource(R.string.detail_barcode_caption_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(caption) }) {
+                Text(stringResource(R.string.detail_add_barcode))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+    )
 }
 
 @Composable

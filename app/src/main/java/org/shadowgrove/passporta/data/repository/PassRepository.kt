@@ -115,6 +115,35 @@ class PassRepository(
         return id
     }
 
+    /**
+     * Appends [barcode] to the barcodes of pass [passId].
+     *
+     * Passes from before the multi-barcode schema may have no rows yet - their legacy barcode
+     * is then taken over as the first entry so it doesn't get lost.
+     * @return false if the pass doesn't exist.
+     */
+    suspend fun addBarcode(passId: String, barcode: PassBarcodeEntity): Boolean {
+        val pass = passDao.findById(passId) ?: return false
+        val existing = passDao.barcodesOf(passId).ifEmpty {
+            listOfNotNull(
+                pass.barcodeData.takeIf { it.isNotBlank() }?.let {
+                    PassBarcodeEntity(
+                        passId = passId,
+                        barcodeData = it,
+                        barcodeType = pass.barcodeType,
+                        barcodeAltText = pass.barcodeAltText,
+                        barcodeEcc = pass.barcodeEcc,
+                        barcodeEncoding = pass.barcodeEncoding,
+                    )
+                },
+            )
+        }
+        val updated = (existing + barcode)
+            .mapIndexed { index, entry -> entry.copy(passId = passId, position = index) }
+        passDao.replaceBarcodes(passId, updated)
+        return true
+    }
+
     suspend fun saveAll(passes: List<PassEntity>, now: Long = System.currentTimeMillis()) {
         passDao.upsertAll(passes.map { it.copy(updatedAt = now) })
     }

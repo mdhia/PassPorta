@@ -18,6 +18,16 @@
     <string name="detail_back">Zurück</string>
     <string name="detail_edit">Pass bearbeiten</string>
     <string name="detail_delete">Pass löschen</string>
+    <string name="detail_barcode_caption_title">Beschriftung des Barcodes</string>
+    <string name="detail_barcode_caption_label">Beschriftung (optional)</string>
+    <string name="add_pass_sheet_title">Neuen Pass hinzufügen</string>
+    <string name="add_barcode_sheet_title">Barcodes zu diesem Pass hinzufügen</string>
+    <string name="detail_add_barcode">Barcode hinzufügen</string>
+    <string name="detail_barcode_added">Barcode hinzugefügt</string>
+    <string name="detail_found_barcodes_title">Gefundene Barcodes</string>
+    <string name="detail_found_barcodes_empty">Keine neuen Barcodes gefunden.</string>
+    <string name="detail_found_barcodes_failed">Die Quelle konnte nicht gelesen werden.</string>
+    <string name="detail_found_barcodes_done">Fertig</string>
     <string name="detail_favorite_add">Zu Favoriten hinzufügen</string>
     <string name="detail_favorite_remove">Aus Favoriten entfernen</string>
     <string name="detail_barcode">Barcode von %1$s</string>

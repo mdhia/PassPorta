@@ -438,6 +438,14 @@ private fun AddPassSheet(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            Text(
+                text = stringResource(R.string.add_pass_sheet_title),
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+            )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.add_pkpass_title)) },
                 supportingContent = { Text(stringResource(R.string.add_pkpass_subtitle)) },

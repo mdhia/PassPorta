@@ -18,6 +18,16 @@
     <string name="detail_back">Back</string>
     <string name="detail_edit">Edit pass</string>
     <string name="detail_delete">Delete pass</string>
+    <string name="detail_barcode_caption_title">Barcode caption</string>
+    <string name="detail_barcode_caption_label">Caption (optional)</string>
+    <string name="add_pass_sheet_title">Add new pass</string>
+    <string name="add_barcode_sheet_title">Add barcodes to this pass</string>
+    <string name="detail_add_barcode">Add barcode</string>
+    <string name="detail_barcode_added">Barcode added</string>
+    <string name="detail_found_barcodes_title">Found barcodes</string>
+    <string name="detail_found_barcodes_empty">No new barcodes found.</string>
+    <string name="detail_found_barcodes_failed">The source could not be read.</string>
+    <string name="detail_found_barcodes_done">Done</string>
     <string name="detail_favorite_add">Add to favorites</string>
     <string name="detail_favorite_remove">Remove from favorites</string>
     <string name="detail_barcode">Barcode of %1$s</string>
